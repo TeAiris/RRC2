@@ -1,0 +1,3997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rhythm Notation Editor</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0d0d0d;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #262626;
+            --accent-red: #ce1126;
+            --accent-yellow: #fcd116;
+            --accent-green: #006b3f;
+            --accent-orange: #ff8c00;
+            --accent-primary: #fcd116;
+            --accent-secondary: #ce1126;
+            --accent-tertiary: #006b3f;
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.7);
+            --border-color: rgba(252, 209, 22, 0.4);
+            --box-size: 40px;
+            --group-gap: 8px;
+            --box-gap: 2px;
+            /* Playhead settings */
+            --playhead-glow: 0.5;
+            --playhead-border-width: 2px;
+            --playhead-pointer-size: 6px;
+            --playhead-box-growth: 1.15;
+            --playhead-separation: 12px;
+            /* Instrument info settings */
+            --instrument-info-width: 180px;
+            --instrument-name-width: 80px;
+            /* Debug settings */
+            --open-symbol-size: 0.8; /* ratio relative to --box-size (0.0 - 1.0) */
+            --beat-number-align: 0px;
+            --tone-outline-width: 2px;
+            --beat-indicator-height: 3px;
+            --beat-indicator-offset: 0px;
+            --title-font-size: 24px;
+            /* Beat number colors - 12 colors for up to 12 beats */
+            --beat-color-1: #ce1126; /* red */
+            --beat-color-2: #ff8c00; /* orange */
+            --beat-color-3: #fcd116; /* yellow */
+            --beat-color-4: #006b3f; /* green */
+            --beat-color-5: #2196f3; /* blue */
+            --beat-color-6: #9c27b0; /* purple */
+            --beat-color-7: #e91e63; /* pink */
+            --beat-color-8: #00bcd4; /* cyan */
+            --beat-color-9: #009688; /* teal */
+            --beat-color-10: #cddc39; /* lime */
+            --beat-color-11: #673ab7; /* deep purple */
+            --beat-color-12: #03a9f4; /* light blue */
+            /* Slider fill defaults to prevent unresolved variable errors */
+            --volume-fill: 100%;
+            --slider-fill: 50%;
+        }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            color: var(--accent-primary);
+            text-align: center;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(224, 112, 32, 0.5);
+            font-size: var(--title-font-size, 24px);
+            letter-spacing: 3px;
+        }
+
+        h1.hidden {
+            display: none;
+        }
+
+        /* Controls Panel */
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+        }
+
+        .control-divider {
+            width: 1px;
+            height: 30px;
+            background: var(--border-color);
+            margin: 0 5px;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-group label {
+            color: var(--text-secondary);
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .control-group input[type="number"],
+        .control-group select {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--accent-primary);
+            padding: 8px 12px;
+            width: 60px;
+            border-radius: 5px;
+            font-size: 14px;
+            width: 80px;
+            font-family: 'Rajdhani', sans-serif;
+        }
+
+        .control-group input[type="number"]:focus,
+        .control-group select:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 10px rgba(224, 112, 32, 0.3);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-secondary));
+            border: 1px solid var(--border-color);
+            color: var(--accent-primary);
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            background: rgba(224, 112, 32, 0.1);
+            box-shadow: 0 0 15px rgba(224, 112, 32, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, rgba(224, 112, 32, 0.2), rgba(224, 112, 32, 0.1));
+            border-color: var(--accent-primary);
+        }
+
+        .btn-play {
+            background: linear-gradient(135deg, rgba(34, 139, 34, 0.2), rgba(34, 139, 34, 0.1));
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+        }
+
+        .btn-play:hover {
+            box-shadow: 0 0 15px var(--accent-green), 0 0 15px var(--accent-green);
+            background: linear-gradient(135deg, rgba(34, 139, 34, 0.3), rgba(34, 139, 34, 0.1));
+            transform: translateY(-2px);
+        }
+
+        .btn-stop {
+            background: linear-gradient(135deg, rgba(178, 34, 34, 0.2), rgba(178, 34, 34, 0.1));
+            border-color: var(--accent-red);
+            color: var(--accent-red);
+        }
+
+        .btn-stop:hover {
+            box-shadow: 0 0 15px var(--accent-red), 0 0 15px var(--accent-red);
+            background: linear-gradient(135deg, rgba(178, 34, 34, 0.3), rgba(178, 34, 34, 0.1));
+            transform: translateY(-2px);
+        }
+
+        .btn-tap {
+            border-color: var(--accent-red);
+            color: #ffd0d0;
+            background: linear-gradient(135deg, rgba(206, 17, 38, 0.28), rgba(206, 17, 38, 0.12));
+            box-shadow: 0 0 8px rgba(206, 17, 38, 0.28);
+        }
+
+        .btn-tap:hover {
+            border-color: #ff5f76;
+            color: #fff1f1;
+            background: linear-gradient(135deg, rgba(206, 17, 38, 0.4), rgba(206, 17, 38, 0.18));
+            box-shadow: 0 0 14px rgba(206, 17, 38, 0.45);
+        }
+
+        .btn-small {
+            padding: 6px 10px;
+            font-size: 11px;
+            min-width: 35px;
+        }
+
+        /* Combined Controls Bar */
+        .combined-controls-bar {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            gap: 8px;
+            justify-content: flex-start;
+            margin-bottom: 15px;
+            padding: 12px 15px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+
+        .combined-controls-bar .audio-control {
+            flex-shrink: 0;
+        }
+
+        .combined-controls-bar .swing-control {
+            flex-shrink: 0;
+        }
+
+        .articulation-label {
+            color: var(--text-secondary);
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-right: 10px;
+        }
+
+        .articulation-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            border: 2px solid transparent;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .articulation-btn .key-hint {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            font-size: 10px;
+            color: var(--text-secondary);
+        }
+
+        .articulation-btn .sound-name {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .articulation-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .articulation-btn.slap-btn { border-color: rgba(206, 17, 38, 0.4); }
+        .articulation-btn.slap-btn:hover, .articulation-btn.slap-btn.active {
+            background: var(--accent-red);
+            color: var(--text-primary);
+            border-color: var(--accent-red);
+            box-shadow: 0 0 15px rgba(206, 17, 38, 0.5);
+        }
+        .articulation-btn.slap-btn.active .key-hint,
+        .articulation-btn.slap-btn.active .sound-name { color: var(--text-primary); }
+
+        .articulation-btn.tone-btn { border-color: rgba(252, 209, 22, 0.4); }
+        .articulation-btn.tone-btn:hover, .articulation-btn.tone-btn.active {
+            background: var(--accent-yellow);
+            color: var(--bg-primary);
+            border-color: var(--accent-yellow);
+            box-shadow: 0 0 15px rgba(252, 209, 22, 0.5);
+        }
+        .articulation-btn.tone-btn.active .key-hint,
+        .articulation-btn.tone-btn.active .sound-name { color: var(--bg-primary); }
+
+        .articulation-btn.bass-btn { border-color: rgba(0, 107, 63, 0.4); }
+        .articulation-btn.bass-btn:hover, .articulation-btn.bass-btn.active {
+            background: var(--accent-green);
+            color: var(--text-primary);
+            border-color: var(--accent-green);
+            box-shadow: 0 0 15px rgba(0, 107, 63, 0.5);
+        }
+        .articulation-btn.bass-btn.active .key-hint,
+        .articulation-btn.bass-btn.active .sound-name { color: var(--text-primary); }
+
+        .articulation-btn.mute-btn { border-color: rgba(255, 140, 0, 0.4); }
+        .articulation-btn.mute-btn:hover, .articulation-btn.mute-btn.active {
+            background: var(--accent-orange);
+            color: var(--text-primary);
+            border-color: var(--accent-orange);
+            box-shadow: 0 0 15px rgba(255, 140, 0, 0.5);
+        }
+
+        .articulation-btn.silence-btn { border-color: rgba(100, 100, 100, 0.4); }
+        .articulation-btn.silence-btn:hover, .articulation-btn.silence-btn.active {
+            background: rgba(100, 100, 100, 0.4);
+            color: var(--text-secondary);
+            border-color: rgba(100, 100, 100, 0.6);
+            box-shadow: 0 0 10px rgba(100, 100, 100, 0.3);
+        }
+
+        .articulation-btn.clear-btn { border-color: rgba(255, 100, 100, 0.4); }
+        .articulation-btn.clear-btn:hover, .articulation-btn.clear-btn.active {
+            background: rgba(255, 100, 100, 0.3);
+            color: #ff6666;
+            border-color: #ff6666;
+            box-shadow: 0 0 10px rgba(255, 100, 100, 0.3);
+        }
+
+        /* Cycle Toggle */
+        .cycle-toggle {
+            margin-left: 15px;
+            padding-left: 15px;
+            border-left: 1px solid var(--border-color);
+        }
+
+        .cycle-toggle #cycleBtn.active {
+            background: var(--accent-yellow);
+            color: var(--bg-primary);
+            border-color: var(--accent-yellow);
+        }
+
+        /* Audio Controls Bar */
+        .audio-controls-bar {
+            display: flex;
+            align-items: center;
+            gap: 25px;
+            margin-bottom: 15px;
+            padding: 12px 20px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .audio-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .audio-label {
+            color: var(--text-secondary);
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .audio-control input[type="range"] {
+            width: 100px;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: linear-gradient(to right, var(--accent-yellow) 0%, var(--accent-yellow) var(--slider-fill, 30%), var(--bg-tertiary) var(--slider-fill, 30%), var(--bg-tertiary) 100%);
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .audio-control input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent-yellow);
+            cursor: pointer;
+            transition: transform 0.1s;
+            border: 2px solid var(--bg-primary);
+        }
+
+        .audio-control input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .audio-value {
+            color: var(--accent-primary);
+            font-size: 12px;
+            min-width: 35px;
+            text-align: right;
+        }
+
+        /* Swing Control - per beat sliders */
+        .swing-control {
+            flex-direction: row;
+            align-items: center;
+        }
+
+        .swing-control .audio-label {
+            margin-right: 5px;
+        }
+
+        .swing-sliders {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .swing-slider-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .swing-label {
+            font-size: 10px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .swing-slider-group input[type="range"] {
+            width: 50px;
+            height: 5px;
+            -webkit-appearance: none;
+            appearance: none;
+            /* Center line at 50%, fill towards current position */
+            background: linear-gradient(to right,
+                var(--bg-tertiary) 0%,
+                var(--bg-tertiary) min(50%, var(--slider-fill, 50%)),
+                var(--accent-yellow) min(50%, var(--slider-fill, 50%)),
+                var(--accent-yellow) max(50%, var(--slider-fill, 50%)),
+                var(--bg-tertiary) max(50%, var(--slider-fill, 50%)),
+                var(--bg-tertiary) 100%
+            );
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .swing-slider-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--accent-yellow);
+            cursor: pointer;
+            border: 1px solid var(--bg-primary);
+        }
+
+        .swing-value {
+            font-size: 10px;
+            color: var(--accent-primary);
+            min-width: 25px;
+            text-align: center;
+        }
+
+        .metronome-control #metronomeBtn {
+            font-size: 11px;
+            padding: 6px 12px;
+        }
+
+        .metronome-control #metronomeBtn.active {
+            background: var(--accent-green);
+            border-color: var(--accent-green);
+            color: var(--bg-primary);
+        }
+
+        /* Import/Export Bar */
+        .io-bar {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        /* Debug Panel */
+        .debug-toggle {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+        }
+
+        .debug-panel {
+            position: fixed;
+            top: 50px;
+            right: 10px;
+            width: 280px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 15px;
+            z-index: 999;
+            display: none;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .debug-panel.visible {
+            display: block;
+        }
+
+        .debug-panel h3 {
+            color: var(--accent-primary);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 12px;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .debug-section {
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .debug-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .debug-section-title {
+            color: var(--text-secondary);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .debug-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .debug-row label {
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        .debug-row input[type="range"] {
+            width: 100px;
+            accent-color: var(--accent-primary);
+        }
+
+        .debug-row input[type="number"] {
+            width: 60px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--accent-primary);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .debug-row input[type="checkbox"] {
+            accent-color: var(--accent-primary);
+        }
+
+        .debug-value {
+            color: var(--accent-primary);
+            font-size: 11px;
+            min-width: 35px;
+            text-align: right;
+        }
+
+        /* Text input styling */
+        .control-group input[type="text"] {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--accent-secondary);
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-size: 14px;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 600;
+            width: 120px;
+        }
+
+        .control-group input[type="text"]:focus {
+            outline: none;
+            border-color: var(--accent-secondary);
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        }
+
+        /* Notation Grid Container */
+        .notation-container {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: 15px;
+            padding: 20px;
+            overflow-x: auto;
+            box-shadow: 0 0 30px rgba(224, 112, 32, 0.1), inset 0 0 20px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        .notation-playback-info {
+            position: absolute;
+            top: 15px;
+            left: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-family: 'Orbitron', sans-serif;
+            z-index: 10;
+        }
+
+        .notation-playback-info .tempo-display {
+            font-size: 18px;
+            color: var(--accent-primary);
+        }
+
+        .notation-playback-info .tempo-display span {
+            font-size: 10px;
+            color: var(--text-secondary);
+            margin-left: 3px;
+        }
+
+        .notation-playback-info .beat-display {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .notation-playback-info .beat-display span {
+            color: var(--accent-primary);
+        }
+
+        /* Notation Grid */
+        .notation-grid {
+            display: flex;
+            flex-direction: column;
+            gap: calc(8px + (var(--playhead-box-growth) - 1) * 20px);
+            min-width: fit-content;
+        }
+
+        /* Beat Numbers Row */
+        .beat-numbers {
+            display: flex;
+            align-items: center;
+            margin-left: var(--instrument-info-width, 180px); /* Space for focus btn + instrument column */
+            /* Must match boxes-container gap for alignment */
+            gap: calc(var(--box-gap) + (var(--playhead-box-growth) - 1) * var(--box-size) * 0.5);
+            margin-bottom: var(--playhead-separation); /* Separation between numbers and playhead/boxes */
+            transform: translateX(var(--beat-number-align, 0px));
+        }
+
+        .beat-number {
+            width: var(--box-size);
+            height: var(--box-size); /* Match box height for vertical centering */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-family: 'Orbitron', sans-serif;
+            font-weight: bold;
+        }
+
+        .beat-number.beat-1 { color: var(--beat-color-1); }
+        .beat-number.beat-2 { color: var(--beat-color-2); }
+        .beat-number.beat-3 { color: var(--beat-color-3); }
+        .beat-number.beat-4 { color: var(--beat-color-4); }
+        .beat-number.beat-5 { color: var(--beat-color-5); }
+        .beat-number.beat-6 { color: var(--beat-color-6); }
+        .beat-number.beat-7 { color: var(--beat-color-7); }
+        .beat-number.beat-8 { color: var(--beat-color-8); }
+        .beat-number.beat-9 { color: var(--beat-color-9); }
+        .beat-number.beat-10 { color: var(--beat-color-10); }
+        .beat-number.beat-11 { color: var(--beat-color-11); }
+        .beat-number.beat-12 { color: var(--beat-color-12); }
+
+        .beat-number.downbeat {
+            font-weight: bold;
+        }
+
+        .group-spacer {
+            width: var(--group-gap);
+            height: var(--box-size); /* Match box height for vertical alignment */
+            display: flex;
+            align-items: center;
+        }
+
+        /* Instrument Row */
+        .instrument-row {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            padding: 5px 0;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .instrument-row:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        /* Instrument Info (left side) */
+        .instrument-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: var(--instrument-info-width, 180px);
+            flex-shrink: 0;
+            padding-right: 10px;
+            position: relative;
+            z-index: 5;
+        }
+
+        .instrument-row.hidden-row {
+            display: none;
+        }
+
+        .instrument-row.muted-row {
+            opacity: 0.5;
+        }
+
+        .instrument-row.muted-row .boxes-container {
+            filter: grayscale(0.7);
+        }
+
+        /* Focused mode - only show focused row */
+        .notation-grid.has-focus .instrument-row {
+            display: none;
+        }
+
+        .notation-grid.has-focus .instrument-row.focused-row {
+            display: flex;
+        }
+
+        .instrument-row.focused-row {
+            background: rgba(252, 209, 22, 0.1);
+            border-radius: 8px;
+            padding: 5px;
+            margin: -5px;
+        }
+
+        /* Focus button */
+        .instrument-focus-btn {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: var(--text-secondary);
+            transition: all 0.2s ease;
+            margin-right: 5px;
+        }
+
+        .instrument-focus-btn:hover {
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+        }
+
+        .instrument-focus-btn.focused {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            color: var(--bg-primary);
+        }
+
+        /* Instrument Toolbar - icons at top for show/hide */
+        .instrument-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            flex-wrap: wrap;
+        }
+
+        .instrument-toolbar-label {
+            color: var(--text-secondary);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-right: 10px;
+        }
+
+        .instrument-toolbar-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .instrument-toolbar-icon:hover {
+            border-color: var(--accent-primary);
+            transform: scale(1.1);
+        }
+
+        .instrument-toolbar-icon.hidden-icon {
+            opacity: 0.3;
+            filter: grayscale(1);
+            border-style: dashed;
+        }
+
+        .instrument-toolbar-icon.hidden-icon::after {
+            content: '✕';
+            position: absolute;
+            font-size: 10px;
+            color: #ff6666;
+            bottom: -2px;
+            right: -2px;
+            background: var(--bg-primary);
+            border-radius: 50%;
+            width: 14px;
+            height: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .instrument-toolbar-icon .tooltip {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            margin-bottom: 5px;
+        }
+
+        .instrument-toolbar-icon:hover .tooltip {
+            opacity: 1;
+        }
+
+        .instrument-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .instrument-icon:hover {
+            border-color: var(--accent-primary);
+            transform: scale(1.05);
+        }
+
+        .instrument-icon.muted {
+            opacity: 0.4;
+            filter: grayscale(1);
+            border-color: rgba(255, 100, 100, 0.5);
+        }
+
+        .instrument-icon.muted::after {
+            content: '🔇';
+            position: absolute;
+            font-size: 10px;
+            bottom: -2px;
+            right: -2px;
+        }
+
+        .instrument-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: var(--instrument-name-width, 80px);
+            min-width: 50px;
+            max-width: 120px;
+            flex-shrink: 0;
+        }
+
+        /* Volume slider for instruments */
+        .instrument-volume {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: 5px;
+            position: relative;
+            z-index: 10;
+            flex-shrink: 0;
+        }
+
+        .instrument-volume input[type="range"] {
+            width: 50px;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: linear-gradient(to right, var(--accent-yellow) 0%, var(--accent-yellow) var(--volume-fill, 100%), var(--bg-tertiary) var(--volume-fill, 100%), var(--bg-tertiary) 100%);
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .instrument-volume input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--accent-yellow);
+            cursor: pointer;
+            transition: transform 0.1s;
+            border: 2px solid var(--bg-primary);
+        }
+
+        .instrument-volume input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .instrument-volume-icon {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* Sample set selector */
+        .instrument-sample-set {
+            font-size: 10px;
+            color: var(--accent-secondary);
+            background: rgba(255, 215, 0, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 4px;
+            cursor: pointer;
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            transition: all 0.2s;
+        }
+
+        .instrument-sample-set:hover {
+            background: rgba(255, 215, 0, 0.2);
+            border-color: var(--accent-secondary);
+        }
+
+        /* Notation Boxes Container */
+        /* Notation Boxes Container */
+        .boxes-container {
+            display: flex;
+            align-items: center;
+            /* Dynamic gap: base gap + extra space needed for box growth */
+            gap: calc(var(--box-gap) + (var(--playhead-box-growth) - 1) * var(--box-size) * 0.5);
+        }
+
+        /* Individual Notation Box */
+        .notation-box {
+            width: var(--box-size);
+            height: var(--box-size);
+            background: var(--bg-tertiary);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: bold;
+            user-select: none;
+            position: relative;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+
+        /* Prevent selection on all notation elements during drag */
+        .notation-grid {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .notation-box:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 8px rgba(224, 112, 32, 0.3);
+            transform: scale(1.05);
+        }
+
+        /* Box states */
+        .notation-box.active {
+            /* Bass = Green */
+            background: var(--accent-green);
+            color: var(--text-primary);
+            border-color: var(--accent-green);
+            box-shadow: 0 0 12px rgba(0, 107, 63, 0.5);
+        }
+
+        .notation-box.tone {
+            /* Size the open symbol relative to the box size and the debug open-symbol-size ratio */
+            font-size: calc(var(--box-size) * var(--open-symbol-size));
+            line-height: 1;
+            background: var(--accent-yellow);
+            color: white;
+            -webkit-text-stroke: var(--tone-outline-width) white;
+        }
+
+        .notation-box.slap {
+            /* Slap = Red */
+            background: var(--accent-red);
+            color: var(--text-primary);
+            border-color: var(--accent-red);
+            box-shadow: 0 0 12px rgba(206, 17, 38, 0.5);
+        }
+
+        .notation-box.mute {
+            background: var(--accent-orange);
+            color: var(--text-primary);
+            border-color: var(--accent-orange);
+            box-shadow: 0 0 12px rgba(255, 140, 0, 0.5);
+        }
+
+        .notation-box.silence {
+            background: rgba(100, 100, 100, 0.2);
+            color: rgba(255, 255, 255, 0.4);
+            border-color: rgba(100, 100, 100, 0.4);
+        }
+
+        /* Downbeat indicator - colored by beat, positioned below box */
+        .notation-box.downbeat.beat-1::after,
+        .notation-box.downbeat.beat-2::after,
+        .notation-box.downbeat.beat-3::after,
+        .notation-box.downbeat.beat-4::after,
+        .notation-box.downbeat.beat-5::after,
+        .notation-box.downbeat.beat-6::after,
+        .notation-box.downbeat.beat-7::after,
+        .notation-box.downbeat.beat-8::after,
+        .notation-box.downbeat.beat-9::after,
+        .notation-box.downbeat.beat-10::after,
+        .notation-box.downbeat.beat-11::after,
+        .notation-box.downbeat.beat-12::after {
+            content: '';
+            position: absolute;
+            bottom: calc(-1 * var(--beat-indicator-offset, 0px));
+            left: 0;
+            right: 0;
+            height: var(--beat-indicator-height, 3px);
+            pointer-events: none;
+        }
+        .notation-box.downbeat.beat-1::after { background: var(--beat-color-1); }
+        .notation-box.downbeat.beat-2::after { background: var(--beat-color-2); }
+        .notation-box.downbeat.beat-3::after { background: var(--beat-color-3); }
+        .notation-box.downbeat.beat-4::after { background: var(--beat-color-4); }
+        .notation-box.downbeat.beat-5::after { background: var(--beat-color-5); }
+        .notation-box.downbeat.beat-6::after { background: var(--beat-color-6); }
+        .notation-box.downbeat.beat-7::after { background: var(--beat-color-7); }
+        .notation-box.downbeat.beat-8::after { background: var(--beat-color-8); }
+        .notation-box.downbeat.beat-9::after { background: var(--beat-color-9); }
+        .notation-box.downbeat.beat-10::after { background: var(--beat-color-10); }
+        .notation-box.downbeat.beat-11::after { background: var(--beat-color-11); }
+        .notation-box.downbeat.beat-12::after { background: var(--beat-color-12); }
+
+        /* Playhead indicator */
+        .notation-box.playing {
+            animation: playPulse 0.15s ease-out;
+        }
+
+        /* Playhead line - visual progress indicator */
+        .playhead-indicator {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: var(--playhead-border-width);
+            background: linear-gradient(180deg, var(--accent-primary), rgba(224, 112, 32, calc(var(--playhead-glow) * 0.6)));
+            border-radius: 2px;
+            box-shadow: 0 0 calc(10px * var(--playhead-glow)) var(--accent-primary), 0 0 calc(20px * var(--playhead-glow)) var(--accent-primary);
+            z-index: 10;
+            pointer-events: none;
+            transition: left 0.05s linear;
+        }
+
+        .notation-box.current-step {
+            position: relative;
+        }
+
+        /* Playhead column highlight */
+        .notation-box.playhead-active {
+            box-shadow: 0 0 calc(15px * var(--playhead-glow)) rgba(224, 112, 32, calc(0.6 * var(--playhead-glow))) !important;
+            border-color: rgba(224, 112, 32, var(--playhead-glow)) !important;
+        }
+
+        @keyframes playPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(var(--playhead-box-growth)); }
+            100% { transform: scale(1); }
+        }
+
+        /* Keep size mode - boxes stay enlarged during beat */
+        .notation-box.playing.keep-size {
+            animation: none;
+            transform: scale(var(--playhead-box-growth));
+            transition: transform 0.1s ease-out;
+        }
+
+        /* Playhead arrow on beat numbers - points up from below */
+        .beat-number.current-beat {
+            position: relative;
+        }
+
+        .beat-number.current-beat::after {
+            content: '';
+            position: absolute;
+            bottom: calc(-1 * var(--playhead-pointer-size) - 4px);
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: var(--playhead-pointer-size) solid transparent;
+            border-right: var(--playhead-pointer-size) solid transparent;
+            border-bottom: calc(var(--playhead-pointer-size) * 1.33) solid var(--accent-primary);
+            filter: drop-shadow(0 0 calc(5px * var(--playhead-glow)) var(--accent-primary));
+            opacity: calc(var(--playhead-glow) + 0.3);
+        }
+
+        /* Group divider (visual spacing between beat groups) */
+        .group-divider {
+            width: var(--group-gap);
+            height: var(--box-size);
+            position: relative;
+        }
+
+        .group-divider::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Tempo and playback info */
+        .playback-info {
+            display: none; /* Moved to notation-playback-info inside grid */
+        }
+
+        .tempo-display {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 24px;
+            color: var(--accent-primary);
+        }
+
+        .tempo-display span {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-left: 5px;
+        }
+
+        /* Sound Legend */
+        .legend {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .legend-box {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .legend-box.bass { background: var(--accent-green); color: var(--text-primary); }
+        .legend-box.slap { background: var(--accent-red); color: var(--text-primary); }
+        .legend-box.mute { background: var(--accent-orange); color: var(--text-primary); }
+
+        /* Add Instrument Button */
+        .add-instrument-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            margin-top: 10px;
+            border: 2px dashed rgba(224, 112, 32, 0.3);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: var(--text-secondary);
+        }
+
+        .add-instrument-row:hover {
+            border-color: var(--accent-primary);
+            background: rgba(224, 112, 32, 0.05);
+            color: var(--accent-primary);
+        }
+
+        /* CSS for larger filled circle in notation grid and legend */
+        .notation-box.tone {
+            /* Size the open symbol relative to the box size and the debug open-symbol-size ratio */
+            font-size: calc(var(--box-size) * var(--open-symbol-size));
+            line-height: 1;
+            background: var(--accent-yellow);
+            color: white;
+            -webkit-text-stroke: var(--tone-outline-width) white;
+        }
+        .legend-box.tone {
+            font-size: calc(var(--box-size) * var(--open-symbol-size) * 0.9);
+            line-height: 1;
+            -webkit-text-stroke: var(--tone-outline-width) white;
+        }
+        .beat-numbers {
+            margin-left: var(--instrument-info-width, 180px);
+        }
+
+        /* Open symbol styling */
+        .open-symbol, .legend-open-symbol {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            /* Use ratio multiplied by box size so slider can control relative size */
+            font-size: calc(var(--box-size, 40px) * var(--open-symbol-size));
+            line-height: 1;
+            color: var(--accent-yellow, #fcd116);
+            width: 100%;
+            height: 100%;
+        }
+        .articulation-btn.open .open-symbol {
+            font-size: 1.2em;
+            color: var(--accent-yellow, #fcd116);
+        }
+        .legend-open-symbol {
+            font-size: calc(var(--box-size, 40px) * 0.8);
+            color: var(--accent-yellow, #fcd116);
+        }
+
+        /* Circular View */
+        .circular-view {
+            width: 100%;
+            height: 600px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        #circularCanvas {
+            border-radius: 50%;
+            background: var(--bg-tertiary);
+        }
+
+        .circular-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 10px 20px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+        }
+
+        .circular-controls span {
+            min-width: 150px;
+            text-align: center;
+            color: var(--accent-primary);
+            font-family: 'Orbitron', sans-serif;
+            font-weight: bold;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .control-group {
+                justify-content: space-between;
+            }
+
+            :root {
+                --box-size: 32px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Debug Toggle Button -->
+    <div class="debug-toggle">
+        <button class="btn" onclick="toggleDebugPanel()">⚙ Debug</button>
+    </div>
+
+    <!-- Debug Panel -->
+    <div class="debug-panel" id="debugPanel">
+        <h3>⚙ Debug Settings</h3>
+
+        <div class="debug-section">
+            <div class="debug-section-title">Playhead Visual</div>
+
+            <div class="debug-row">
+                <label>Glow Intensity:</label>
+                <input type="range" id="playheadGlow" min="0" max="1" step="0.1" value="0.5">
+                <span class="debug-value" id="playheadGlowValue">0.5</span>
+            </div>
+
+            <div class="debug-row">
+                <label>Border Width:</label>
+                <input type="range" id="playheadBorder" min="0" max="4" step="0.5" value="2">
+                <span class="debug-value" id="playheadBorderValue">2px</span>
+            </div>
+
+            <div class="debug-row">
+                <label>Pointer Size:</label>
+                <input type="range" id="playheadPointer" min="0" max="10" step="1" value="6">
+                <span class="debug-value" id="playheadPointerValue">6px</span>
+            </div>
+
+            <div class="debug-row">
+                <label>Show Pointer:</label>
+                <input type="checkbox" id="showPointer" checked>
+            </div>
+
+            <div class="debug-row">
+                <label>Show Glow:</label>
+                <input type="checkbox" id="showGlow" checked>
+            </div>
+
+            <div class="debug-row">
+                <label>Box Growth:</label>
+                <input type="range" id="boxGrowth" min="1" max="1.5" step="0.05" value="1.15">
+                <span class="debug-value" id="boxGrowthValue">1.15</span>
+            </div>
+
+            <div class="debug-row">
+                <label>Keep Size:</label>
+                <input type="checkbox" id="keepSize">
+            </div>
+
+            <div class="debug-row">
+                <label>Separation:</label>
+                <input type="range" id="playheadSeparation" min="0" max="30" step="1" value="12">
+                <span class="debug-value" id="playheadSeparationValue">12px</span>
+            </div>
+        </div>
+
+        <div class="debug-section">
+            <div class="debug-section-title">Swing</div>
+            <div class="debug-row">
+                <label>Factor:</label>
+                <input type="range" id="swingFactor" min="0" max="100" step="5" value="100">
+                <span class="debug-value" id="swingFactorValue">100</span>
+            </div>
+        </div>
+
+        <div class="debug-section">
+            <div class="debug-section-title">Grid</div>
+
+            <div class="debug-row">
+                <label>Box Size:</label>
+                <input type="range" id="boxSize" min="24" max="60" step="2" value="40">
+                <span class="debug-value" id="boxSizeValue">40px</span>
+            </div>
+
+            <div class="debug-row">
+                <label>Group Gap:</label>
+                <input type="range" id="groupGap" min="0" max="40" step="1" value="8">
+                <span class="debug-value" id="groupGapValue">8px</span>
+            </div>
+
+            <div class="debug-row">
+                <label>Box Gap:</label>
+                <input type="range" id="boxGap" min="0" max="10" step="1" value="2">
+                <span class="debug-value" id="boxGapValue">2px</span>
+            </div>
+
+            <div class="debug-row">
+                <label>Info Width:</label>
+                <input type="range" id="instrumentInfoWidth" min="120" max="250" step="5" value="180">
+                <span class="debug-value" id="instrumentInfoWidthValue">180px</span>
+            </div>
+
+            <div class="debug-row">
+                <label>Name Width:</label>
+                <input type="range" id="instrumentNameWidth" min="40" max="120" step="5" value="80">
+                <span class="debug-value" id="instrumentNameWidthValue">80px</span>
+            </div>
+        </div>
+
+        <div class="debug-section">
+            <div class="debug-section-title">Audio</div>
+
+            <div class="debug-row">
+                <label>Reverb:</label>
+                <input type="range" id="reverbAmount" min="0" max="1" step="0.05" value="0.3">
+                <span class="debug-value" id="reverbAmountValue">0.3</span>
+            </div>
+        </div>
+
+        <div class="debug-section">
+            <div class="debug-section-title">Title</div>
+
+            <div class="debug-row">
+                <label for="titleFontSize">Title Font Size</label>
+                <input type="range" id="titleFontSize" min="12" max="48" step="1" value="24">
+                <span id="titleFontSizeValue">24px</span>
+            </div>
+            <div class="debug-row">
+                <label for="titleVisible">Show Title</label>
+                <input type="checkbox" id="titleVisible" checked>
+            </div>
+        </div>
+
+        <div class="debug-section">
+            <div class="debug-section-title">Open Symbol & Beat Number</div>
+
+            <div class="debug-row">
+                <label for="openSymbolSize">Open Symbol Size</label>
+                <input type="range" id="openSymbolSize" min="40" max="100" step="1" value="80">
+                <span id="openSymbolSizeValue">80%</span>
+            </div>
+            <div class="debug-row">
+                <label for="beatNumberAlign">Beat Number Align</label>
+                <input type="range" id="beatNumberAlign" min="0" max="100" step="1" value="0">
+                <span id="beatNumberAlignValue">0px</span>
+            </div>
+            <div class="debug-row">
+                <label for="toneOutlineWidth">Tone Outline Width</label>
+                <input type="range" id="toneOutlineWidth" min="0" max="8" step="0.5" value="2">
+                <span id="toneOutlineWidthValue">2px</span>
+            </div>
+            <div class="debug-row">
+                <label for="beatIndicatorHeight">Beat Indicator Height</label>
+                <input type="range" id="beatIndicatorHeight" min="0" max="10" step="1" value="3">
+                <span id="beatIndicatorHeightValue">3px</span>
+            </div>
+            <div class="debug-row">
+                <label for="beatIndicatorOffset">Beat Indicator Y Offset</label>
+                <input type="range" id="beatIndicatorOffset" min="0" max="20" step="1" value="0">
+                <span id="beatIndicatorOffsetValue">0px</span>
+            </div>
+        </div>
+
+        <div class="debug-section">
+            <div class="debug-section-title">Beat Colors (1-12)</div>
+            <div class="debug-row">
+                <label for="beatColor1">Beat 1</label>
+                <input type="color" id="beatColor1" value="#ce1126">
+                <label for="beatColor2">Beat 2</label>
+                <input type="color" id="beatColor2" value="#ff8c00">
+                <label for="beatColor3">Beat 3</label>
+                <input type="color" id="beatColor3" value="#fcd116">
+                <label for="beatColor4">Beat 4</label>
+                <input type="color" id="beatColor4" value="#006b3f">
+            </div>
+            <div class="debug-row">
+                <label for="beatColor5">Beat 5</label>
+                <input type="color" id="beatColor5" value="#2196f3">
+                <label for="beatColor6">Beat 6</label>
+                <input type="color" id="beatColor6" value="#9c27b0">
+                <label for="beatColor7">Beat 7</label>
+                <input type="color" id="beatColor7" value="#e91e63">
+                <label for="beatColor8">Beat 8</label>
+                <input type="color" id="beatColor8" value="#00bcd4">
+            </div>
+            <div class="debug-row">
+                <label for="beatColor9">Beat 9</label>
+                <input type="color" id="beatColor9" value="#009688">
+                <label for="beatColor10">Beat 10</label>
+                <input type="color" id="beatColor10" value="#cddc39">
+                <label for="beatColor11">Beat 11</label>
+                <input type="color" id="beatColor11" value="#673ab7">
+                <label for="beatColor12">Beat 12</label>
+                <input type="color" id="beatColor12" value="#03a9f4">
+            </div>
+        </div>
+
+        <div class="debug-section">
+            <div class="debug-section-title">Settings</div>
+            <div class="debug-row">
+                <button onclick="exportDebugSettings()" style="padding: 8px 16px; background: var(--accent-primary); color: var(--bg-primary); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Export Settings</button>
+            </div>
+            <div class="debug-row">
+                <input type="file" id="importSettingsFile" accept=".json" style="display: none;" onchange="importDebugSettings(event)">
+                <button onclick="document.getElementById('importSettingsFile').click()" style="padding: 8px 16px; background: var(--accent-secondary); color: var(--bg-primary); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Import Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <h1 id="appTitle">Rhythm Notation Editor</h1>
+
+    <!-- Main Controls -->
+    <div class="controls">
+        <div class="control-group">
+            <label>Rhythm:</label>
+            <input type="text" id="rhythmName" value="Kassa" placeholder="Rhythm name">
+        </div>
+        <div class="control-group">
+            <label>Beats:</label>
+            <input type="number" id="beatCount" value="4" min="1" max="16" style="width: 50px;">
+        </div>
+        <div class="control-group">
+            <label>Subdivisions:</label>
+            <input type="number" id="subdivisions" value="4" min="1" max="8" style="width: 50px;">
+        </div>
+        <button class="btn btn-play" id="playBtn" onclick="togglePlayback()">▶ Play</button>
+        <button class="btn" id="viewToggleBtn" onclick="toggleView()">🔄 Circular View</button>
+        <span class="control-divider"></span>
+        <div class="control-group">
+            <label>Tempo:</label>
+            <button class="btn btn-small" onclick="adjustTempo(-10)">-10</button>
+            <button class="btn btn-small" onclick="adjustTempo(-1)">-</button>
+            <input type="number" id="tempo" value="100" min="40" max="240" style="width: 70px;">
+            <button class="btn btn-small" onclick="adjustTempo(1)">+</button>
+            <button class="btn btn-small" onclick="adjustTempo(10)">+10</button>
+            <button class="btn btn-small btn-tap" id="tapTempoBtn" onclick="tapTempo()">Tap</button>
+        </div>
+        <span class="control-divider"></span>
+        <button class="btn" onclick="loadExample()">Load</button>
+        <button class="btn" onclick="exportRhythm()">Export</button>
+        <button class="btn" onclick="importRhythm()">Import</button>
+        <input type="file" id="importFile" accept=".json" style="display: none;" onchange="handleFileImport(event)">
+        <button class="btn" onclick="clearAll()">Clear All</button>
+    </div>
+
+    <!-- Combined Controls Bar -->
+    <div class="combined-controls-bar">
+        <span class="articulation-label">Articulation:</span>
+        <button class="articulation-btn slap-btn active" data-sound="slap" onclick="setSound('slap')">
+            <span class="key-hint">1</span> S <span class="sound-name">Slap</span>
+        </button>
+        <button class="articulation-btn tone-btn" data-sound="tone" onclick="setSound('tone')">
+            <span class="key-hint">2</span> T <span class="sound-name">Tone</span>
+        </button>
+        <button class="articulation-btn bass-btn" data-sound="bass" onclick="setSound('bass')">
+            <span class="key-hint">3</span> B <span class="sound-name">Bass</span>
+        </button>
+        <button class="articulation-btn mute-btn" data-sound="mute" onclick="setSound('mute')">
+            <span class="key-hint">4</span> M <span class="sound-name">Mute</span>
+        </button>
+        <button class="articulation-btn silence-btn" data-sound="silence" onclick="setSound('silence')">
+            <span class="key-hint">5</span> — <span class="sound-name">Silence</span>
+        </button>
+        <button class="btn btn-small" id="cycleBtn" onclick="toggleCycleMode()">🔄 Cycle</button>
+
+        <span class="control-divider"></span>
+
+        <div class="audio-control">
+            <span class="audio-label">🔊 Reverb</span>
+            <input type="range" id="reverbSlider" min="0" max="1" step="0.05" value="0.3"
+                   oninput="updateReverb(this.value); this.style.setProperty('--slider-fill', (this.value * 100) + '%')"
+                   style="width: 80px; --slider-fill: 30%">
+            <span class="audio-value" id="reverbValue">30%</span>
+        </div>
+
+        <span class="control-divider"></span>
+
+        <div class="audio-control swing-control">
+            <span class="audio-label">🎵 Swing</span>
+            <div class="swing-sliders">
+                <div class="swing-slider-group">
+                    <span class="swing-label">A</span>
+                    <input type="range" id="swingA" min="-50" max="50" step="5" value="0"
+                           oninput="updateSwingBeat('A', this.value)"
+                           style="width: 60px; --slider-fill: 50%">
+                    <span class="swing-value" id="swingAValue">0</span>
+                </div>
+                <div class="swing-slider-group">
+                    <span class="swing-label">B</span>
+                    <input type="range" id="swingB" min="-50" max="50" step="5" value="15"
+                           oninput="updateSwingBeat('B', this.value)"
+                           style="width: 60px; --slider-fill: 65%">
+                    <span class="swing-value" id="swingBValue">15</span>
+                </div>
+                <div class="swing-slider-group">
+                    <span class="swing-label">C</span>
+                    <input type="range" id="swingC" min="-50" max="50" step="5" value="0"
+                           oninput="updateSwingBeat('C', this.value)"
+                           style="width: 60px; --slider-fill: 50%">
+                    <span class="swing-value" id="swingCValue">0</span>
+                </div>
+                <div class="swing-slider-group">
+                    <span class="swing-label">D</span>
+                    <input type="range" id="swingD" min="-50" max="50" step="5" value="15"
+                           oninput="updateSwingBeat('D', this.value)"
+                           style="width: 60px; --slider-fill: 65%">
+                    <span class="swing-value" id="swingDValue">15</span>
+                </div>
+            </div>
+        </div>
+
+        <span class="control-divider"></span>
+
+        <div class="audio-control metronome-control">
+            <button class="btn btn-small" id="metronomeBtn" onclick="toggleMetronome()">
+                🎶 Metronome
+            </button>
+            <input type="range" id="metronomeVolume" min="0" max="1" step="0.05" value="0.5"
+                   oninput="updateMetronomeVolume(this.value); this.style.setProperty('--slider-fill', (this.value * 100) + '%')"
+                   style="width: 80px; --slider-fill: 50%">
+            <span class="audio-value" id="metronomeVolumeValue">50%</span>
+        </div>
+    </div>
+
+    <!-- Instrument Toolbar -->
+    <div class="instrument-toolbar" id="instrumentToolbar">
+        <span class="instrument-toolbar-label">Instruments:</span>
+        <!-- Icons will be populated by JavaScript -->
+        <button class="btn btn-small" id="toggleAllBtn" onclick="toggleAllInstruments()" style="margin-left: auto;">👁 Toggle All</button>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+        <div class="legend-item">
+            <div class="legend-box bass">B</div>
+            <span>Bass (deep)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-box tone" style="font-size: 20px;">○</div>
+            <span>Open (tone)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-box slap">X</div>
+            <span>Slap (sharp)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-box mute">M</div>
+            <span>Mute</span>
+        </div>
+    </div>
+
+    <!-- Notation Grid -->
+    <div class="notation-container" id="notationContainer">
+        <div class="notation-playback-info">
+            <div class="tempo-display" id="tempoDisplay">100<span>BPM</span></div>
+            <div class="beat-display">Beat: <span id="currentBeat">-</span></div>
+        </div>
+        <div class="notation-grid" id="notationGrid">
+            <!-- Beat numbers row -->
+            <div class="beat-numbers" id="beatNumbers"></div>
+
+            <!-- Instrument rows will be added here -->
+        </div>
+        <!-- Circular view -->
+        <div class="circular-view" id="circularView" style="display: none;">
+            <canvas id="circularCanvas"></canvas>
+            <div class="circular-controls">
+                <button class="btn btn-small" onclick="cyclicalPrevInstrument()">◀</button>
+                <span id="circularInstrumentName"></span>
+                <button class="btn btn-small" onclick="cyclicalNextInstrument()">▶</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let state = {
+            rhythmName: 'Kassa',
+            beats: 4,
+            subdivisions: 4,
+            tempo: 100,
+            viewMode: 'linear', // 'linear' or 'circular'
+            circularInstrumentIndex: 0,
+            // Swing per beat position (A=1st, B=2nd, C=3rd, D=4th subdivision within each beat)
+            // Values -50 to +50, internally +20 is added so 15 feels like 35
+            swing: {
+                factor: 100, // Overall swing intensity (in debug settings)
+                A: 0,        // 1st subdivision (downbeat) - no swing
+                B: 15,       // 2nd subdivision - delay
+                C: 0,        // 3rd subdivision - no swing
+                D: 15        // 4th subdivision - delay
+            },
+            currentSound: 'slap',
+            cycleMode: true, // Cycle through articulations on click - ON by default
+            themeColor: '#fcd116', // For player color theming (yellow)
+            isPlaying: false,
+            playbackInterval: null,
+            currentStep: 0,
+            isDragging: false, // For drag-to-fill functionality
+            instruments: [
+                { id: 'djembe1', name: 'Djembe 1', icon: '🥁', type: 'djembe', sampleSet: 'One', pattern: [], visible: true, muted: false, volume: 1.0, focused: false },
+                { id: 'djembe2', name: 'Djembe 2', icon: '🥁', type: 'djembe', sampleSet: 'Two', pattern: [], visible: true, muted: false, volume: 1.0, focused: false },
+                { id: 'djembe3', name: 'Djembe 3', icon: '🥁', type: 'djembe', sampleSet: 'Three', pattern: [], visible: true, muted: false, volume: 1.0, focused: false },
+                { id: 'kenkeni1', name: 'Kenkeni', icon: '🪘', type: 'kenkeni', sampleSet: 'default', pattern: [], visible: true, muted: false, volume: 1.0, focused: false },
+                { id: 'kenkeni_bell1', name: 'Kenkeni Bell', icon: '🔔', type: 'kenkeni_bell', sampleSet: 'default', pattern: [], visible: true, muted: false, volume: 1.0, focused: false },
+                { id: 'sangban1', name: 'Sangban', icon: '🪘', type: 'sangban', sampleSet: 'default', pattern: [], visible: true, muted: false, volume: 1.0, focused: false },
+                { id: 'sangban_bell1', name: 'Sangban Bell', icon: '🔔', type: 'sangban_bell', sampleSet: 'default', pattern: [], visible: true, muted: false, volume: 1.0, focused: false },
+                { id: 'doundoun1', name: 'Doundoun', icon: '🪘', type: 'doundoun', sampleSet: 'default', pattern: [], visible: true, muted: false, volume: 1.0, focused: false },
+                { id: 'doundoun_bell1', name: 'Doundoun Bell', icon: '🔔', type: 'doundoun_bell', sampleSet: 'default', pattern: [], visible: true, muted: false, volume: 1.0, focused: false }
+            ]
+        };
+
+        // Audio samples cache - organized by instrument type and sample set
+        const audioSamples = {};
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Round-robin state for each instrument/sound combination
+        const roundRobinState = {};
+
+        // Djembe sample sets (internal - not exposed to user)
+        const djembeSampleSets = ['One', 'Two', 'Three', 'Five', 'Six', 'Seven', 'Solo'];
+        let djembeCounter = 0;
+
+        // Available instrument types
+        const instrumentTypes = {
+            djembe: {
+                name: 'Djembe',
+                icon: '🥁',
+                articulations: ['slap', 'tone', 'bass', 'mute', 'silence'],
+                sounds: {
+                    slap: { file: 'Slap', hasL: true },
+                    tone: { file: 'Open', hasL: true },
+                    bass: { file: 'Bass', hasL: true },
+                    mute: { file: 'Mute', hasL: true }
+                }
+            },
+            kenkeni: {
+                name: 'Kenkeni',
+                icon: '🪘',
+                articulations: ['tone', 'mute', 'silence'],
+                sounds: {
+                    tone: { file: 'Open', hasL: false },
+                    mute: { file: 'Muffled', hasL: false }
+                }
+            },
+            kenkeni_bell: {
+                name: 'Kenkeni Bell',
+                icon: '🔔',
+                articulations: ['tone', 'silence'],
+                sounds: {
+                    tone: { file: 'Bell_Open', hasL: false }
+                }
+            },
+            sangban: {
+                name: 'Sangban',
+                icon: '🪘',
+                articulations: ['tone', 'mute', 'silence'],
+                sounds: {
+                    tone: { file: 'Open', hasL: false },
+                    mute: { file: 'Muffled', hasL: false }
+                }
+            },
+            sangban_bell: {
+                name: 'Sangban Bell',
+                icon: '🔔',
+                articulations: ['tone', 'silence'],
+                sounds: {
+                    tone: { file: 'Bell_Open', hasL: false }
+                }
+            },
+            doundoun: {
+                name: 'Doundoun',
+                icon: '🪘',
+                articulations: ['tone', 'mute', 'silence'],
+                sounds: {
+                    tone: { file: 'Open', hasL: false },
+                    mute: { file: 'Muffled', hasL: false }
+                }
+            },
+            doundoun_bell: {
+                name: 'Doundoun Bell',
+                icon: '🔔',
+                articulations: ['tone', 'silence'],
+                sounds: {
+                    tone: { file: 'Bell_Open', hasL: false }
+                }
+            },
+            shekere: {
+                name: 'Shekere',
+                icon: '🎶',
+                articulations: ['tone', 'slap', 'silence'],
+                sounds: {
+                    tone: { file: '', hasL: false },
+                    slap: { file: 'B', hasL: false }
+                }
+            }
+        };
+
+        // Get available articulations for an instrument
+        function getInstrumentArticulations(instrument) {
+            const type = instrumentTypes[instrument.type || 'djembe'];
+            return type ? type.articulations : ['slap', 'tone', 'bass', 'mute', 'silence'];
+        }
+
+        // Metronome state
+        let metronomeEnabled = false;
+        let metronomeVolume = 0.5;
+
+        // Reverb setup
+        let reverbNode = null;
+        let reverbGain = null;
+        let dryGain = null;
+
+        // Create impulse response for reverb
+        function createReverbImpulse(duration = 2, decay = 2) {
+            const sampleRate = audioContext.sampleRate;
+            const length = sampleRate * duration;
+            const impulse = audioContext.createBuffer(2, length, sampleRate);
+
+            for (let channel = 0; channel < 2; channel++) {
+                const channelData = impulse.getChannelData(channel);
+                for (let i = 0; i < length; i++) {
+                    channelData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay);
+                }
+            }
+            return impulse;
+        }
+
+        // Initialize reverb
+        function initReverb() {
+            reverbNode = audioContext.createConvolver();
+            reverbNode.buffer = createReverbImpulse(2, 2);
+
+            reverbGain = audioContext.createGain();
+            reverbGain.gain.value = 0.3; // Default reverb amount
+
+            dryGain = audioContext.createGain();
+            dryGain.gain.value = 1.0;
+
+            // Connect reverb path
+            reverbNode.connect(reverbGain);
+            reverbGain.connect(audioContext.destination);
+            dryGain.connect(audioContext.destination);
+        }
+
+        // Load audio samples
+        async function loadAudioSamples() {
+            const basePath = 'public/audio/';
+
+            // Load djembe samples for all sample sets
+            audioSamples['djembe'] = {};
+            for (const setName of djembeSampleSets) {
+                audioSamples['djembe'][setName] = {};
+                for (const [soundName, soundInfo] of Object.entries(instrumentTypes.djembe.sounds)) {
+                    audioSamples['djembe'][setName][soundName] = [];
+
+                    const filename = `Djembe${setName}_${soundInfo.file}.mp3`;
+                    try {
+                        const response = await fetch(basePath + filename);
+                        if (response.ok) {
+                            const arrayBuffer = await response.arrayBuffer();
+                            const buffer = await audioContext.decodeAudioData(arrayBuffer);
+                            audioSamples['djembe'][setName][soundName].push(buffer);
+                            console.log(`Loaded: ${filename}`);
+                        }
+                    } catch (error) {
+                        console.warn(`Failed to load: ${filename}`, error);
+                    }
+
+                    // Load L version for round-robin
+                    if (soundInfo.hasL) {
+                        const filenameL = `Djembe${setName}_${soundInfo.file}L.mp3`;
+                        try {
+                            const response = await fetch(basePath + filenameL);
+                            if (response.ok) {
+                                const arrayBuffer = await response.arrayBuffer();
+                                const buffer = await audioContext.decodeAudioData(arrayBuffer);
+                                audioSamples['djembe'][setName][soundName].push(buffer);
+                                console.log(`Loaded: ${filenameL}`);
+                            }
+                        } catch (error) {
+                            console.warn(`Failed to load: ${filenameL}`, error);
+                        }
+                    }
+                }
+            }
+
+            // Load dunun family samples
+            const dununTypes = [
+                { id: 'kenkeni', prefix: 'Kenkeni' },
+                { id: 'kenkeni_bell', prefix: 'Kenkeni', bellOnly: true },
+                { id: 'sangban', prefix: 'Sangban' },
+                { id: 'sangban_bell', prefix: 'Sangban', bellOnly: true },
+                { id: 'doundoun', prefix: 'Doundoun' },
+                { id: 'doundoun_bell', prefix: 'Doundoun', bellOnly: true }
+            ];
+
+            for (const dunun of dununTypes) {
+                audioSamples[dunun.id] = { 'default': {} };
+                const type = instrumentTypes[dunun.id];
+
+                for (const [soundName, soundInfo] of Object.entries(type.sounds)) {
+                    audioSamples[dunun.id]['default'][soundName] = [];
+                    const filename = `${dunun.prefix}_${soundInfo.file}.mp3`;
+
+                    try {
+                        const response = await fetch(basePath + filename);
+                        if (response.ok) {
+                            const arrayBuffer = await response.arrayBuffer();
+                            const buffer = await audioContext.decodeAudioData(arrayBuffer);
+                            audioSamples[dunun.id]['default'][soundName].push(buffer);
+                            console.log(`Loaded: ${filename}`);
+                        }
+                    } catch (error) {
+                        console.warn(`Failed to load: ${filename}`, error);
+                    }
+                }
+            }
+
+            // Load shekere samples (for metronome)
+            audioSamples['shekere'] = { 'default': {} };
+            audioSamples['shekere']['default']['tone'] = [];
+            audioSamples['shekere']['default']['slap'] = [];
+
+            try {
+                const response = await fetch(basePath + 'Shekere.mp3');
+                if (response.ok) {
+                    const arrayBuffer = await response.arrayBuffer();
+                    const buffer = await audioContext.decodeAudioData(arrayBuffer);
+                    audioSamples['shekere']['default']['tone'].push(buffer);
+                    console.log('Loaded: Shekere.mp3');
+                }
+            } catch (error) {
+                console.warn('Failed to load Shekere.mp3', error);
+            }
+
+            try {
+                const response = await fetch(basePath + 'ShekereB.mp3');
+                if (response.ok) {
+                    const arrayBuffer = await response.arrayBuffer();
+                    const buffer = await audioContext.decodeAudioData(arrayBuffer);
+                    audioSamples['shekere']['default']['slap'].push(buffer);
+                    console.log('Loaded: ShekereB.mp3');
+                }
+            } catch (error) {
+                console.warn('Failed to load ShekereB.mp3', error);
+            }
+
+            console.log('Audio samples loaded:', audioSamples);
+        }
+
+        // Play a sound for a specific instrument
+        function playSound(soundType, instrument, volume = 1.0) {
+            // Resume audio context if suspended (browser autoplay policy)
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+
+            // Initialize reverb if not done
+            if (!reverbNode) {
+                initReverb();
+            }
+
+            // Get instrument type and sample set
+            const instType = instrument.type || 'djembe';
+            const sampleSet = instrument.sampleSet || 'One';
+
+            // Check if samples exist for this instrument
+            if (!audioSamples[instType] || !audioSamples[instType][sampleSet]) {
+                console.warn(`No samples for ${instType}/${sampleSet}`);
+                return;
+            }
+
+            const samples = audioSamples[instType][sampleSet][soundType];
+            if (!samples || samples.length === 0) {
+                console.warn(`No ${soundType} sample for ${instType}/${sampleSet}`);
+                return;
+            }
+
+            // Round-robin selection
+            const rrKey = `${instrument.id}_${soundType}`;
+            if (!roundRobinState[rrKey]) {
+                roundRobinState[rrKey] = 0;
+            }
+            const sampleIndex = roundRobinState[rrKey] % samples.length;
+            roundRobinState[rrKey]++;
+
+            const buffer = samples[sampleIndex];
+
+            const source = audioContext.createBufferSource();
+            source.buffer = buffer;
+
+            const gainNode = audioContext.createGain();
+            gainNode.gain.value = volume * (instrument.volume !== undefined ? instrument.volume : 1.0);
+
+            // Connect through reverb and dry paths
+            source.connect(gainNode);
+            gainNode.connect(dryGain);
+            gainNode.connect(reverbNode);
+
+            source.start(0);
+        }
+
+        // Legacy playSound for simple use (backwards compatibility)
+        function playSoundSimple(soundType, volume = 1.0) {
+            playSound(soundType, { id: 'default', type: 'djembe', sampleSet: 'One', volume: 1.0 }, volume);
+        }
+
+        // Update reverb amount
+        function setReverbAmount(amount) {
+            if (reverbGain) {
+                reverbGain.gain.value = amount;
+            }
+            // Adjust dry signal inversely (optional - keeps overall volume consistent)
+            if (dryGain) {
+                dryGain.gain.value = 1 - (amount * 0.5);
+            }
+        }
+
+        // Debug settings
+        let debugSettings = {
+            playheadGlow: 0.5,
+            playheadBorder: 2,
+            playheadPointer: 6,
+            showPointer: true,
+            showGlow: true,
+            boxGrowth: 1.15,
+            keepSize: false,
+            playheadSeparation: 12,
+            boxSize: 40,
+            groupGap: 8,
+            boxGap: 2,
+            instrumentInfoWidth: 180,
+            instrumentNameWidth: 80,
+            reverbAmount: 0.3,
+            openSymbolSize: 80, // percent
+            beatNumberAlign: 0, // px
+            toneOutlineWidth: 2, // px
+            beatIndicatorHeight: 3, // px (border thickness for beat indicators)
+            beatIndicatorOffset: 0, // px (y-offset to push border down)
+            beatColors: [
+                '#ce1126', '#ff8c00', '#fcd116', '#006b3f', // red, orange, yellow, green
+                '#2196f3', '#9c27b0', '#e91e63', '#00bcd4', // blue, purple, pink, cyan
+                '#009688', '#cddc39', '#673ab7', '#03a9f4'  // teal, lime, deep purple, light blue
+            ],
+            titleFontSize: 24, // px
+            titleVisible: true
+        };
+
+        // Tap tempo state
+        let tapTempoTaps = [];
+        const tapTempoWindow = 3000; // 3 seconds
+
+        // Toggle debug panel visibility
+        function toggleDebugPanel() {
+            const panel = document.getElementById('debugPanel');
+            panel.classList.toggle('visible');
+        }
+
+        // Setup debug panel event listeners
+        function setupDebugPanel() {
+            // Load saved debug settings
+            const saved = localStorage.getItem('notationDebugSettings');
+            if (saved) {
+                debugSettings = { ...debugSettings, ...JSON.parse(saved) };
+            }
+
+            // Apply initial settings
+            applyDebugSettings();
+
+            // Update UI controls to match saved values
+            document.getElementById('playheadGlow').value = debugSettings.playheadGlow;
+            document.getElementById('playheadGlowValue').textContent = debugSettings.playheadGlow;
+            document.getElementById('playheadBorder').value = debugSettings.playheadBorder;
+            document.getElementById('playheadBorderValue').textContent = debugSettings.playheadBorder + 'px';
+            document.getElementById('playheadPointer').value = debugSettings.playheadPointer;
+            document.getElementById('playheadPointerValue').textContent = debugSettings.playheadPointer + 'px';
+            document.getElementById('showPointer').checked = debugSettings.showPointer;
+            document.getElementById('showGlow').checked = debugSettings.showGlow;
+            document.getElementById('boxGrowth').value = debugSettings.boxGrowth;
+            document.getElementById('boxGrowthValue').textContent = debugSettings.boxGrowth;
+            document.getElementById('keepSize').checked = debugSettings.keepSize;
+            document.getElementById('playheadSeparation').value = debugSettings.playheadSeparation;
+            document.getElementById('playheadSeparationValue').textContent = debugSettings.playheadSeparation + 'px';
+            document.getElementById('boxSize').value = debugSettings.boxSize;
+            document.getElementById('boxSizeValue').textContent = debugSettings.boxSize + 'px';
+            document.getElementById('groupGap').value = debugSettings.groupGap;
+            document.getElementById('groupGapValue').textContent = debugSettings.groupGap + 'px';
+            document.getElementById('boxGap').value = debugSettings.boxGap;
+            document.getElementById('boxGapValue').textContent = debugSettings.boxGap + 'px';
+            document.getElementById('instrumentInfoWidth').value = debugSettings.instrumentInfoWidth;
+            document.getElementById('instrumentInfoWidthValue').textContent = debugSettings.instrumentInfoWidth + 'px';
+            document.getElementById('instrumentNameWidth').value = debugSettings.instrumentNameWidth;
+            document.getElementById('instrumentNameWidthValue').textContent = debugSettings.instrumentNameWidth + 'px';
+            document.getElementById('reverbAmount').value = debugSettings.reverbAmount;
+            document.getElementById('reverbAmountValue').textContent = debugSettings.reverbAmount.toFixed(2);
+
+            // Swing factor (uses state, not debugSettings)
+            document.getElementById('swingFactor').value = state.swing.factor;
+            document.getElementById('swingFactorValue').textContent = state.swing.factor;
+
+            // Playhead glow
+            document.getElementById('playheadGlow').addEventListener('input', (e) => {
+                debugSettings.playheadGlow = parseFloat(e.target.value);
+                document.getElementById('playheadGlowValue').textContent = debugSettings.playheadGlow;
+                applyDebugSettings();
+                saveDebugSettings();
+            });
+
+            // Playhead border width
+            document.getElementById('playheadBorder').addEventListener('input', (e) => {
+                debugSettings.playheadBorder = parseFloat(e.target.value);
+                document.getElementById('playheadBorderValue').textContent = debugSettings.playheadBorder + 'px';
+                applyDebugSettings();
+                saveDebugSettings();
+            });
+
+            // Playhead pointer size
+            document.getElementById('playheadPointer').addEventListener('input', (e) => {
+                debugSettings.playheadPointer = parseInt(e.target.value);
+                document.getElementById('playheadPointerValue').textContent = debugSettings.playheadPointer + 'px';
+                applyDebugSettings();
+                saveDebugSettings();
+            });
+
+            // Show pointer toggle
+            document.getElementById('showPointer').addEventListener('change', (e) => {
+                debugSettings.showPointer = e.target.checked;
+                applyDebugSettings();
+                saveDebugSettings();
+            });
+
+            // Show glow toggle
+            document.getElementById('showGlow').addEventListener('change', (e) => {
+                debugSettings.showGlow = e.target.checked;
+                applyDebugSettings();
+                saveDebugSettings();
+            });
+
+            // Box growth
+            document.getElementById('boxGrowth').addEventListener('input', (e) => {
+                debugSettings.boxGrowth = parseFloat(e.target.value);
+                document.getElementById('boxGrowthValue').textContent = debugSettings.boxGrowth;
+                applyDebugSettings();
+                saveDebugSettings();
+            });
+
+            // Keep size toggle
+            document.getElementById('keepSize').addEventListener('change', (e) => {
+                debugSettings.keepSize = e.target.checked;
+                applyDebugSettings();
+                saveDebugSettings();
+            });
+
+            // Playhead separation
+            document.getElementById('playheadSeparation').addEventListener('input', (e) => {
+                debugSettings.playheadSeparation = parseInt(e.target.value);
+                document.getElementById('playheadSeparationValue').textContent = debugSettings.playheadSeparation + 'px';
+                applyDebugSettings();
+                saveDebugSettings();
+            });
+
+            // Box size
+            document.getElementById('boxSize').addEventListener('input', (e) => {
+                debugSettings.boxSize = parseInt(e.target.value);
+                document.getElementById('boxSizeValue').textContent = debugSettings.boxSize + 'px';
+                applyDebugSettings();
+                saveDebugSettings();
+            });
+
+            // Group gap
+            document.getElementById('groupGap').addEventListener('input', (e) => {
+                debugSettings.groupGap = parseInt(e.target.value);
+                document.getElementById('groupGapValue').textContent = debugSettings.groupGap + 'px';
+                applyDebugSettings();
+                saveDebugSettings();
+            });
+
+            // Box gap
+            document.getElementById('boxGap').addEventListener('input', (e) => {
+                debugSettings.boxGap = parseInt(e.target.value);
+                document.getElementById('boxGapValue').textContent = debugSettings.boxGap + 'px';
+                applyDebugSettings();
+                saveDebugSettings();
+            });
+
+            // Instrument info width
+            document.getElementById('instrumentInfoWidth').addEventListener('input', (e) => {
+                debugSettings.instrumentInfoWidth = parseInt(e.target.value);
+                document.getElementById('instrumentInfoWidthValue').textContent = debugSettings.instrumentInfoWidth + 'px';
+                applyDebugSettings();
+                saveDebugSettings();
+            });
+
+            // Instrument name width
+            document.getElementById('instrumentNameWidth').addEventListener('input', (e) => {
+                debugSettings.instrumentNameWidth = parseInt(e.target.value);
+                document.getElementById('instrumentNameWidthValue').textContent = debugSettings.instrumentNameWidth + 'px';
+                applyDebugSettings();
+                saveDebugSettings();
+            });
+
+            // Reverb amount
+            document.getElementById('reverbAmount').addEventListener('input', (e) => {
+                debugSettings.reverbAmount = parseFloat(e.target.value);
+                document.getElementById('reverbAmountValue').textContent = debugSettings.reverbAmount.toFixed(2);
+                setReverbAmount(debugSettings.reverbAmount);
+                saveDebugSettings();
+            });
+
+            // Swing factor
+            document.getElementById('swingFactor').addEventListener('input', (e) => {
+                updateSwingFactor(e.target.value);
+            });
+
+            // Open symbol size
+            const openSymbolEl = document.getElementById('openSymbolSize');
+            const openSymbolVal = document.getElementById('openSymbolSizeValue');
+            if (openSymbolEl) {
+                // initialize control from debugSettings (saved or defaults)
+                openSymbolEl.value = debugSettings.openSymbolSize;
+                openSymbolVal.textContent = debugSettings.openSymbolSize + '%';
+
+                openSymbolEl.addEventListener('input', function() {
+                    const val = parseFloat(this.value);
+                    debugSettings.openSymbolSize = val;
+                    applyDebugSettings();
+                    document.getElementById('openSymbolSizeValue').textContent = val + '%';
+                    saveDebugSettings();
+                });
+            }
+
+            // Beat number alignment
+            const beatAlignEl = document.getElementById('beatNumberAlign');
+            const beatAlignVal = document.getElementById('beatNumberAlignValue');
+            if (beatAlignEl) {
+                beatAlignEl.value = debugSettings.beatNumberAlign;
+                beatAlignVal.textContent = debugSettings.beatNumberAlign + 'px';
+
+                beatAlignEl.addEventListener('input', function() {
+                    const val = parseInt(this.value);
+                    debugSettings.beatNumberAlign = val;
+                    applyDebugSettings();
+                    document.getElementById('beatNumberAlignValue').textContent = val + 'px';
+                    saveDebugSettings();
+                });
+            }
+
+            // Tone outline width
+            const toneOutlineEl = document.getElementById('toneOutlineWidth');
+            const toneOutlineVal = document.getElementById('toneOutlineWidthValue');
+            if (toneOutlineEl) {
+                toneOutlineEl.value = debugSettings.toneOutlineWidth;
+                toneOutlineVal.textContent = debugSettings.toneOutlineWidth + 'px';
+
+                toneOutlineEl.addEventListener('input', function() {
+                    const val = parseFloat(this.value);
+                    debugSettings.toneOutlineWidth = val;
+                    applyDebugSettings();
+                    document.getElementById('toneOutlineWidthValue').textContent = val + 'px';
+                    saveDebugSettings();
+                });
+            }
+
+            // Beat indicator height
+            const beatHeightEl = document.getElementById('beatIndicatorHeight');
+            const beatHeightVal = document.getElementById('beatIndicatorHeightValue');
+            if (beatHeightEl) {
+                beatHeightEl.value = debugSettings.beatIndicatorHeight;
+                beatHeightVal.textContent = debugSettings.beatIndicatorHeight + 'px';
+
+                beatHeightEl.addEventListener('input', function() {
+                    const val = parseInt(this.value);
+                    debugSettings.beatIndicatorHeight = val;
+                    applyDebugSettings();
+                    document.getElementById('beatIndicatorHeightValue').textContent = val + 'px';
+                    saveDebugSettings();
+                });
+            }
+
+            // Beat indicator Y offset
+            const beatOffsetEl = document.getElementById('beatIndicatorOffset');
+            const beatOffsetVal = document.getElementById('beatIndicatorOffsetValue');
+            if (beatOffsetEl) {
+                beatOffsetEl.value = debugSettings.beatIndicatorOffset;
+                beatOffsetVal.textContent = debugSettings.beatIndicatorOffset + 'px';
+
+                beatOffsetEl.addEventListener('input', function() {
+                    const val = parseInt(this.value);
+                    debugSettings.beatIndicatorOffset = val;
+                    applyDebugSettings();
+                    document.getElementById('beatIndicatorOffsetValue').textContent = val + 'px';
+                    saveDebugSettings();
+                });
+            }
+
+            // Beat color pickers (12 colors)
+            for (let i = 1; i <= 12; i++) {
+                const colorEl = document.getElementById(`beatColor${i}`);
+                if (colorEl) {
+                    colorEl.value = debugSettings.beatColors[i - 1];
+                    colorEl.addEventListener('input', function() {
+                        debugSettings.beatColors[i - 1] = this.value;
+                        applyDebugSettings();
+                        saveDebugSettings();
+                    });
+                }
+            }
+
+            // Title font size
+            const titleFontEl = document.getElementById('titleFontSize');
+            const titleFontVal = document.getElementById('titleFontSizeValue');
+            if (titleFontEl) {
+                titleFontEl.value = debugSettings.titleFontSize;
+                titleFontVal.textContent = debugSettings.titleFontSize + 'px';
+
+                titleFontEl.addEventListener('input', function() {
+                    const val = parseInt(this.value);
+                    debugSettings.titleFontSize = val;
+                    applyDebugSettings();
+                    document.getElementById('titleFontSizeValue').textContent = val + 'px';
+                    saveDebugSettings();
+                });
+            }
+
+            // Title visible toggle
+            const titleVisibleEl = document.getElementById('titleVisible');
+            if (titleVisibleEl) {
+                titleVisibleEl.checked = debugSettings.titleVisible;
+
+                titleVisibleEl.addEventListener('change', function() {
+                    debugSettings.titleVisible = this.checked;
+                    applyDebugSettings();
+                    saveDebugSettings();
+                });
+            }
+        }
+
+        // Apply debug settings to CSS variables
+        function applyDebugSettings() {
+            const root = document.documentElement;
+            root.style.setProperty('--playhead-glow', debugSettings.showGlow ? debugSettings.playheadGlow : 0);
+            root.style.setProperty('--playhead-border-width', debugSettings.playheadBorder + 'px');
+            root.style.setProperty('--playhead-pointer-size', debugSettings.showPointer ? debugSettings.playheadPointer + 'px' : '0px');
+            root.style.setProperty('--playhead-box-growth', debugSettings.boxGrowth);
+            root.style.setProperty('--playhead-separation', debugSettings.playheadSeparation + 'px');
+            root.style.setProperty('--box-size', debugSettings.boxSize + 'px');
+            root.style.setProperty('--group-gap', debugSettings.groupGap + 'px');
+            root.style.setProperty('--box-gap', debugSettings.boxGap + 'px');
+            root.style.setProperty('--instrument-info-width', debugSettings.instrumentInfoWidth + 'px');
+            root.style.setProperty('--instrument-name-width', debugSettings.instrumentNameWidth + 'px');
+            root.style.setProperty('--open-symbol-size', (debugSettings.openSymbolSize / 100).toString());
+            root.style.setProperty('--beat-number-align', (debugSettings.beatNumberAlign || 0) + 'px');
+            root.style.setProperty('--tone-outline-width', (debugSettings.toneOutlineWidth || 2) + 'px');
+            root.style.setProperty('--beat-indicator-height', (debugSettings.beatIndicatorHeight || 3) + 'px');
+            root.style.setProperty('--beat-indicator-offset', (debugSettings.beatIndicatorOffset || 0) + 'px');
+            root.style.setProperty('--title-font-size', (debugSettings.titleFontSize || 24) + 'px');
+
+            // Apply beat colors (12 colors)
+            if (debugSettings.beatColors) {
+                for (let i = 0; i < 12; i++) {
+                    root.style.setProperty(`--beat-color-${i + 1}`, debugSettings.beatColors[i]);
+                }
+            }
+
+            // Apply title visibility
+            const titleEl = document.getElementById('appTitle');
+            if (titleEl) {
+                if (debugSettings.titleVisible) {
+                    titleEl.classList.remove('hidden');
+                } else {
+                    titleEl.classList.add('hidden');
+                }
+            }
+        }
+
+        // Save debug settings to localStorage
+        function saveDebugSettings() {
+            localStorage.setItem('notationDebugSettings', JSON.stringify(debugSettings));
+        }
+
+        // Export debug settings as JSON
+        function exportDebugSettings() {
+            const json = JSON.stringify(debugSettings, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'debug-settings.json';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        function importDebugSettings(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    debugSettings = { ...debugSettings, ...imported };
+                    applyDebugSettings();
+                    setupDebugPanel(); // Re-initialize UI controls
+                    saveDebugSettings();
+                    alert('Debug settings imported successfully!');
+                } catch (error) {
+                    alert('Error importing settings: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // Toggle between linear and circular view
+        function toggleView() {
+            state.viewMode = state.viewMode === 'linear' ? 'circular' : 'linear';
+            const linearGrid = document.getElementById('notationGrid');
+            const circularView = document.getElementById('circularView');
+            const toggleBtn = document.getElementById('viewToggleBtn');
+
+            if (state.viewMode === 'circular') {
+                linearGrid.style.display = 'none';
+                circularView.style.display = 'flex';
+                toggleBtn.textContent = '📊 Linear View';
+                initCircularView();
+            } else {
+                linearGrid.style.display = 'flex';
+                circularView.style.display = 'none';
+                toggleBtn.textContent = '🔄 Circular View';
+            }
+        }
+
+        function cyclicalPrevInstrument() {
+            const visibleInstruments = state.instruments.filter(i => i.visible !== false);
+            if (visibleInstruments.length === 0) return;
+
+            state.circularInstrumentIndex = (state.circularInstrumentIndex - 1 + visibleInstruments.length) % visibleInstruments.length;
+            drawCircularView();
+        }
+
+        function cyclicalNextInstrument() {
+            const visibleInstruments = state.instruments.filter(i => i.visible !== false);
+            if (visibleInstruments.length === 0) return;
+
+            state.circularInstrumentIndex = (state.circularInstrumentIndex + 1) % visibleInstruments.length;
+            drawCircularView();
+        }
+
+        function initCircularView() {
+            const canvas = document.getElementById('circularCanvas');
+            const size = Math.min(500, window.innerWidth - 100);
+            canvas.width = size;
+            canvas.height = size;
+            drawCircularView();
+        }
+
+        function drawCircularView() {
+            const canvas = document.getElementById('circularCanvas');
+            const ctx = canvas.getContext('2d');
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = Math.min(centerX, centerY) - 40;
+
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Get current instrument
+            const visibleInstruments = state.instruments.filter(i => i.visible !== false);
+            if (visibleInstruments.length === 0) return;
+
+            const instrument = visibleInstruments[state.circularInstrumentIndex];
+            document.getElementById('circularInstrumentName').textContent = instrument.name;
+
+            const totalSteps = state.beats * state.subdivisions;
+            const anglePerStep = (2 * Math.PI) / totalSteps;
+
+            // Calculate smooth radar angle (one revolution per measure)
+            const totalMeasureMs = (60000 / state.tempo) * state.beats;
+            const elapsed = Date.now() % totalMeasureMs;
+            const radarAngle = -Math.PI / 2 + (elapsed / totalMeasureMs) * 2 * Math.PI;
+
+            // Draw radar sweep effect if playing
+            if (state.isPlaying) {
+                // Draw gradient sweep (hologram effect)
+                const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+                gradient.addColorStop(0, 'rgba(252, 209, 22, 0.3)');
+                gradient.addColorStop(0.5, 'rgba(252, 209, 22, 0.1)');
+                gradient.addColorStop(1, 'rgba(252, 209, 22, 0)');
+
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, radarAngle - Math.PI / 6, radarAngle);
+                ctx.closePath();
+                ctx.fill();
+
+                // Draw radar line (spinning line)
+                ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent-primary');
+                ctx.lineWidth = 3;
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = getComputedStyle(document.documentElement).getPropertyValue('--accent-primary');
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.lineTo(
+                    centerX + Math.cos(radarAngle) * radius,
+                    centerY + Math.sin(radarAngle) * radius
+                );
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+            }
+
+            // Draw pulsing heart in center (throbs on each beat)
+            const currentBeat = Math.floor(state.currentStep / state.subdivisions);
+            const subProgress = (state.currentStep % state.subdivisions) / state.subdivisions;
+            const heartPulse = Math.max(0, 1 - subProgress * 2);
+            const heartSize = 15 + heartPulse * 8;
+
+            ctx.fillStyle = 'rgba(206, 17, 38, 0.8)';
+            ctx.shadowBlur = 15 + heartPulse * 10;
+            ctx.shadowColor = 'rgba(206, 17, 38, 0.8)';
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, heartSize, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // Draw tick marks evenly spaced (all colored by beat)
+            for (let i = 0; i < totalSteps; i++) {
+                const beat = Math.floor(i / state.subdivisions);
+                const sub = i % state.subdivisions;
+                const isDownbeat = sub === 0;
+
+                // Even spacing (no swing on ticks)
+                const angle = -Math.PI / 2 + i * anglePerStep;
+
+                const tickStart = radius;
+                const tickEnd = radius - (isDownbeat ? 20 : 12);
+
+                // Get beat color
+                const beatColor = debugSettings.beatColors[beat % 12];
+
+                ctx.strokeStyle = beatColor;
+                ctx.lineWidth = isDownbeat ? 4 : 2;
+                ctx.beginPath();
+                ctx.moveTo(
+                    centerX + Math.cos(angle) * tickStart,
+                    centerY + Math.sin(angle) * tickStart
+                );
+                ctx.lineTo(
+                    centerX + Math.cos(angle) * tickEnd,
+                    centerY + Math.sin(angle) * tickEnd
+                );
+                ctx.stroke();
+
+                // Draw beat number on downbeats
+                if (isDownbeat) {
+                    ctx.fillStyle = beatColor;
+                    ctx.font = 'bold 14px Orbitron';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    const numRadius = radius - 35;
+                    ctx.fillText(
+                        beat + 1,
+                        centerX + Math.cos(angle) * numRadius,
+                        centerY + Math.sin(angle) * numRadius
+                    );
+                }
+            }
+
+            // Draw notation as circular segments and circles
+            for (let i = 0; i < totalSteps; i++) {
+                const beat = Math.floor(i / state.subdivisions);
+                const sub = i % state.subdivisions;
+                const sound = instrument.pattern[i];
+
+                if (sound && sound !== 'silence') {
+                    const swingKey = String.fromCharCode(65 + (sub % 4));
+                    const swingOffset = (state.swing[swingKey] || 0) / 100;
+                    const angle = -Math.PI / 2 + i * anglePerStep + swingOffset * anglePerStep;
+                    const notationRadius = radius - 60;
+
+                    const soundType = soundTypes[sound];
+                    if (soundType) {
+                        const noteX = centerX + Math.cos(angle) * notationRadius;
+                        const noteY = centerY + Math.sin(angle) * notationRadius;
+
+                        if (sound === 'tone') {
+                            // Draw circle outline for tone
+                            ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent-yellow').trim();
+                            ctx.fillStyle = 'rgba(252, 209, 22, 0.2)';
+                            ctx.lineWidth = 3;
+                            ctx.beginPath();
+                            ctx.arc(noteX, noteY, 12, 0, 2 * Math.PI);
+                            ctx.fill();
+                            ctx.stroke();
+                        } else {
+                            // Draw filled circle for other sounds
+                            ctx.fillStyle = sound === 'slap' ? getComputedStyle(document.documentElement).getPropertyValue('--accent-red').trim() :
+                                           sound === 'bass' ? getComputedStyle(document.documentElement).getPropertyValue('--accent-green').trim() :
+                                           sound === 'mute' ? getComputedStyle(document.documentElement).getPropertyValue('--accent-orange').trim() :
+                                           'rgba(100, 100, 100, 0.5)';
+
+                            ctx.beginPath();
+                            ctx.arc(noteX, noteY, 10, 0, 2 * Math.PI);
+                            ctx.fill();
+
+                            // Draw character inside
+                            ctx.fillStyle = 'white';
+                            ctx.font = 'bold 12px Arial';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText(soundType.char, noteX, noteY);
+                        }
+                    }
+                }
+            }
+        }
+
+        /* Update soundTypes mapping for notation standards */
+        const soundTypes = {
+            slap: { char: 'X', class: 'slap' },
+            tone: { char: '○', class: 'tone' }, // circle outline, larger font
+            bass: { char: 'B', class: 'active' },
+            mute: { char: 'M', class: 'mute' },
+            silence: { char: '—', class: 'silence' },
+            clear: { char: '—', class: 'silence' }
+        };
+
+        // Articulation definitions
+        const ARTICULATIONS = {
+            Open: {
+                label: 'Open',
+                symbol: 'O',
+                color: '--accent-yellow',
+                audio: ['Open', 'OpenL'],
+            },
+            Slap: {
+                label: 'Slap',
+                symbol: 'X',
+                color: '--accent-red',
+                audio: ['Slap', 'SlapL'],
+            },
+            Bass: {
+                label: 'Bass',
+                symbol: '●',
+                color: '--accent-green',
+                audio: ['Bass', 'BassL'],
+            },
+            Ghost: {
+                label: 'Mute',
+                symbol: 'M',
+                color: '--accent-gray',
+                audio: ['Mute', 'MuteL'],
+            },
+            Silence: {
+                label: 'Silence',
+                symbol: '—',
+                color: '--accent-silence',
+                audio: [],
+            },
+            Muffled: {
+                label: 'Muffled',
+                symbol: 'm',
+                color: '--accent-muffled',
+                audio: ['Muffled'],
+            }
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            loadFromLocalStorage();
+            setupDebugPanel();
+            await loadAudioSamples();
+            // Initialize reverb with saved settings
+            initReverb();
+            setReverbAmount(debugSettings.reverbAmount);
+            updateInstrumentToolbar();
+            updateGrid();
+            setupEventListeners();
+
+            // Initialize cycle button state (on by default)
+            if (state.cycleMode) {
+                document.getElementById('cycleBtn').classList.add('active');
+            }
+
+            // Initialize swing UI
+            updateSwingUI();
+        });
+
+        function setupEventListeners() {
+            document.getElementById('rhythmName').addEventListener('change', (e) => {
+                state.rhythmName = e.target.value;
+                saveToLocalStorage();
+            });
+
+            document.getElementById('beatCount').addEventListener('change', (e) => {
+                const oldBeats = state.beats;
+                const newBeats = parseInt(e.target.value);
+                state.beats = newBeats;
+
+                // Preserve current beat position if playing
+                const wasPlaying = state.isPlaying;
+                if (wasPlaying) {
+                    const currentBeat = Math.floor(state.currentStep / state.subdivisions);
+                    stopPlayback();
+                    updateGrid();
+                    // Adjust current step to stay in same beat if possible
+                    if (currentBeat < newBeats) {
+                        state.currentStep = currentBeat * state.subdivisions;
+                    } else {
+                        state.currentStep = 0;
+                    }
+                    startPlayback();
+                } else {
+                    updateGrid();
+                }
+                saveToLocalStorage();
+            });
+
+            document.getElementById('subdivisions').addEventListener('change', (e) => {
+                const newSubdivisions = parseInt(e.target.value);
+                const currentBeat = Math.floor(state.currentStep / state.subdivisions);
+                state.subdivisions = newSubdivisions;
+
+                // Preserve current beat position
+                const wasPlaying = state.isPlaying;
+                if (wasPlaying) {
+                    stopPlayback();
+                    updateGrid();
+                    state.currentStep = currentBeat * newSubdivisions;
+                    startPlayback();
+                } else {
+                    state.currentStep = currentBeat * newSubdivisions;
+                    updateGrid();
+                }
+                saveToLocalStorage();
+            });
+
+            document.getElementById('tempo').addEventListener('change', (e) => {
+                state.tempo = parseInt(e.target.value);
+                document.getElementById('tempoDisplay').innerHTML = `${state.tempo}<span>BPM</span>`;
+                if (state.isPlaying) {
+                    stopPlayback();
+                    startPlayback();
+                }
+            });
+
+            // Keyboard shortcuts - letters and numbers
+            document.addEventListener('keydown', (e) => {
+                // Don't trigger if typing in an input
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+                // Letter shortcuts
+                switch(e.key.toLowerCase()) {
+                    case 's': setSound('slap'); break;
+                    case 't': setSound('tone'); break;
+                    case 'b': setSound('bass'); break;
+                    case 'm': setSound('mute'); break;
+                    case '-': setSound('silence'); break;
+                    case 'x': setSound('clear'); break;
+                    case ' ':
+                        e.preventDefault();
+                        togglePlayback();
+                        break;
+                }
+                // Number shortcuts: 1=slap, 2=tone, 3=bass, 4=mute, 5=silence, 0=clear
+                switch(e.key) {
+                    case '1': setSound('slap'); break;
+                    case '2': setSound('tone'); break;
+                    case '3': setSound('bass'); break;
+                    case '4': setSound('mute'); break;
+                    case '5': setSound('silence'); break;
+                    case '0': setSound('clear'); break;
+                }
+            });
+        }
+
+        // Set current sound and update articulation buttons
+        function setSound(sound) {
+            state.currentSound = sound;
+            // Update button states
+            document.querySelectorAll('.articulation-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.sound === sound) {
+                    btn.classList.add('active');
+                }
+            });
+        }
+
+        // Adjust tempo by delta
+        function adjustTempo(delta) {
+            state.tempo = Math.max(40, Math.min(240, state.tempo + delta));
+            document.getElementById('tempo').value = state.tempo;
+            document.getElementById('tempoDisplay').innerHTML = `${state.tempo}<span>BPM</span>`;
+            if (state.isPlaying) {
+                stopPlayback();
+                startPlayback();
+            }
+            saveToLocalStorage();
+        }
+
+        // Tap tempo - tap button rhythmically to set tempo
+        function tapTempo() {
+            const now = Date.now();
+
+            // Clear old taps outside the window
+            tapTempoTaps = tapTempoTaps.filter(tap => now - tap < tapTempoWindow);
+
+            // Add current tap
+            tapTempoTaps.push(now);
+
+            // Need at least 2 taps to calculate tempo
+            if (tapTempoTaps.length >= 2) {
+                // Calculate average interval between taps
+                let totalInterval = 0;
+                for (let i = 1; i < tapTempoTaps.length; i++) {
+                    totalInterval += tapTempoTaps[i] - tapTempoTaps[i - 1];
+                }
+                const avgInterval = totalInterval / (tapTempoTaps.length - 1);
+
+                // Convert to BPM (60000ms per minute / interval in ms)
+                const bpm = Math.round(60000 / avgInterval);
+
+                // Clamp to valid range
+                const newTempo = Math.max(40, Math.min(240, bpm));
+
+                state.tempo = newTempo;
+                document.getElementById('tempo').value = state.tempo;
+                document.getElementById('tempoDisplay').innerHTML = `${state.tempo}<span>BPM</span>`;
+
+                if (state.isPlaying) {
+                    stopPlayback();
+                    startPlayback();
+                }
+                saveToLocalStorage();
+            }
+        }
+
+        // Update the instrument toolbar (icons at top for show/hide)
+        function updateInstrumentToolbar() {
+            const toolbar = document.getElementById('instrumentToolbar');
+            // Keep the label, remove existing icons
+            const label = toolbar.querySelector('.instrument-toolbar-label');
+            toolbar.innerHTML = '';
+            toolbar.appendChild(label);
+
+            state.instruments.forEach((instrument, index) => {
+                const iconDiv = document.createElement('div');
+                iconDiv.className = 'instrument-toolbar-icon' + (instrument.visible === false ? ' hidden-icon' : '');
+                iconDiv.dataset.index = index;
+                iconDiv.innerHTML = `
+                    ${instrument.icon}
+                    <span class="tooltip">${instrument.name}</span>
+                `;
+                iconDiv.addEventListener('click', () => toggleInstrumentVisibility(index));
+                toolbar.appendChild(iconDiv);
+            });
+        }
+
+        function updateGrid() {
+            const grid = document.getElementById('notationGrid');
+            const totalSteps = state.beats * state.subdivisions;
+
+            // Clear existing rows except beat numbers
+            grid.innerHTML = '';
+
+            // Create beat numbers row
+            const beatNumbersRow = document.createElement('div');
+            beatNumbersRow.className = 'beat-numbers';
+            beatNumbersRow.id = 'beatNumbers';
+
+            for (let beat = 0; beat < state.beats; beat++) {
+                // Calculate beat color class (cycles through 1-12)
+                const beatColorClass = `beat-${(beat % 12) + 1}`;
+
+                for (let sub = 0; sub < state.subdivisions; sub++) {
+                    const numDiv = document.createElement('div');
+                    let classes = 'beat-number';
+                    if (sub === 0) {
+                        classes += ' downbeat ' + beatColorClass;
+                    }
+                    numDiv.className = classes;
+                    numDiv.textContent = sub === 0 ? (beat + 1) : (sub + 1);
+                    beatNumbersRow.appendChild(numDiv);
+                }
+
+                // Add group spacer (except after last beat)
+                if (beat < state.beats - 1) {
+                    const spacer = document.createElement('div');
+                    spacer.className = 'group-spacer';
+                    beatNumbersRow.appendChild(spacer);
+                }
+            }
+
+            grid.appendChild(beatNumbersRow);
+
+            // Create instrument rows
+            state.instruments.forEach((instrument, instrIndex) => {
+                // Initialize pattern if needed
+                if (!instrument.pattern || instrument.pattern.length !== totalSteps) {
+                    instrument.pattern = new Array(totalSteps).fill(null);
+                }
+
+                const row = createInstrumentRow(instrument, instrIndex);
+                grid.appendChild(row);
+            });
+
+            saveToLocalStorage();
+        }
+
+        function createInstrumentRow(instrument, instrIndex) {
+            const row = document.createElement('div');
+            row.className = 'instrument-row';
+            row.dataset.instrument = instrument.id;
+
+            // Apply hidden state if instrument is not visible
+            const isVisible = instrument.visible !== false; // Default to true if undefined
+            if (!isVisible) {
+                row.classList.add('hidden-row');
+            }
+
+            // Apply muted state
+            const isMuted = instrument.muted === true;
+            if (isMuted) {
+                row.classList.add('muted-row');
+            }
+
+            // Apply focused state
+            const isFocused = instrument.focused === true;
+            if (isFocused) {
+                row.classList.add('focused-row');
+            }
+
+            // Focus button
+            const focusBtn = document.createElement('button');
+            focusBtn.className = 'instrument-focus-btn' + (isFocused ? ' focused' : '');
+            focusBtn.innerHTML = '👁';
+            focusBtn.title = isFocused ? 'Unfocus instrument' : 'Focus on this instrument';
+            focusBtn.addEventListener('click', () => toggleInstrumentFocus(instrIndex));
+            row.appendChild(focusBtn);
+
+            // Instrument info with clickable icon for mute
+            const info = document.createElement('div');
+            info.className = 'instrument-info';
+
+            const iconDiv = document.createElement('div');
+            iconDiv.className = 'instrument-icon' + (isMuted ? ' muted' : '');
+            iconDiv.textContent = instrument.icon;
+            iconDiv.title = isMuted ? 'Unmute instrument' : 'Mute instrument';
+            iconDiv.addEventListener('click', () => toggleInstrumentMute(instrIndex));
+            info.appendChild(iconDiv);
+
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'instrument-name';
+            nameDiv.textContent = instrument.name;
+            info.appendChild(nameDiv);
+
+
+            // Volume slider
+            const volumeDiv = document.createElement('div');
+            volumeDiv.className = 'instrument-volume';
+
+            const volumeIcon = document.createElement('span');
+            volumeIcon.className = 'instrument-volume-icon';
+            volumeIcon.textContent = '🔊';
+            volumeDiv.appendChild(volumeIcon);
+
+            const volumeSlider = document.createElement('input');
+            volumeSlider.type = 'range';
+            volumeSlider.min = '0';
+            volumeSlider.max = '1';
+            volumeSlider.step = '0.05';
+            volumeSlider.value = instrument.volume !== undefined ? instrument.volume : 1.0;
+            volumeSlider.style.setProperty('--volume-fill', `${(instrument.volume || 1) * 100}%`);
+            volumeSlider.title = `Volume: ${Math.round((instrument.volume || 1) * 100)}%`;
+            volumeSlider.addEventListener('input', (e) => {
+                instrument.volume = parseFloat(e.target.value);
+                volumeSlider.style.setProperty('--volume-fill', `${instrument.volume * 100}%`);
+                volumeSlider.title = `Volume: ${Math.round(instrument.volume * 100)}%`;
+                volumeIcon.textContent = instrument.volume === 0 ? '🔇' : instrument.volume < 0.5 ? '🔉' : '🔊';
+                saveToLocalStorage();
+            });
+            volumeDiv.appendChild(volumeSlider);
+
+            info.appendChild(volumeDiv);
+
+            row.appendChild(info);
+
+            // Boxes container
+            const boxesContainer = document.createElement('div');
+            boxesContainer.className = 'boxes-container';
+
+            let stepIndex = 0;
+            for (let beat = 0; beat < state.beats; beat++) {
+                for (let sub = 0; sub < state.subdivisions; sub++) {
+                    const box = createNotationBox(instrument, instrIndex, stepIndex, sub === 0, beat);
+                    boxesContainer.appendChild(box);
+                    stepIndex++;
+                }
+
+                // Add group divider (except after last beat)
+                if (beat < state.beats - 1) {
+                    const divider = document.createElement('div');
+                    divider.className = 'group-divider';
+                    boxesContainer.appendChild(divider);
+                }
+            }
+
+            row.appendChild(boxesContainer);
+            return row;
+        }
+
+        // Cycle through sample sets for an instrument
+        function cycleSampleSet(instrIndex) {
+            const instrument = state.instruments[instrIndex];
+            const instType = instrumentTypes[instrument.type || 'djembe'];
+            if (!instType || instType.sampleSets.length <= 1) return;
+
+            const currentIndex = instType.sampleSets.indexOf(instrument.sampleSet || instType.sampleSets[0]);
+            const nextIndex = (currentIndex + 1) % instType.sampleSets.length;
+            instrument.sampleSet = instType.sampleSets[nextIndex];
+
+            // Update the display
+            updateGrid();
+            saveToLocalStorage();
+        }
+
+        function createNotationBox(instrument, instrIndex, stepIndex, isDownbeat, beat) {
+            const box = document.createElement('div');
+            let classes = 'notation-box';
+            if (isDownbeat) {
+                classes += ' downbeat';
+                // Calculate beat color class (cycles through 1-4)
+                const beatColorClass = `beat-${(beat % 4) + 1}`;
+                classes += ' ' + beatColorClass;
+            }
+            box.className = classes;
+            box.dataset.instrument = instrIndex;
+            box.dataset.step = stepIndex;
+
+            // Set initial state from pattern (default to silence)
+            const sound = instrument.pattern[stepIndex] || 'silence';
+            if (soundTypes[sound]) {
+                box.classList.add(soundTypes[sound].class);
+                box.textContent = soundTypes[sound].char;
+            }
+
+            // Mouse down - start dragging and apply sound
+            box.addEventListener('mousedown', (e) => {
+                if (e.button === 0) { // Left click only
+                    state.isDragging = true;
+                    handleBoxClick(box, instrIndex, stepIndex);
+                }
+            });
+
+            // Mouse enter while dragging - apply sound
+            box.addEventListener('mouseenter', () => {
+                if (state.isDragging) {
+                    handleBoxClick(box, instrIndex, stepIndex);
+                }
+            });
+
+            // Right-click to clear (set to silence)
+            box.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                clearBox(box, instrIndex, stepIndex);
+            });
+
+            return box;
+        }
+
+        // Global mouse up listener to stop dragging
+        document.addEventListener('mouseup', () => {
+            if (state.isDragging) {
+                state.isDragging = false;
+                saveToLocalStorage();
+            }
+        });
+
+        // Prevent text selection while dragging
+        document.addEventListener('selectstart', (e) => {
+            if (state.isDragging) {
+                e.preventDefault();
+            }
+        });
+
+        function handleBoxClick(box, instrIndex, stepIndex) {
+            const instrument = state.instruments[instrIndex];
+            const availableArticulations = getInstrumentArticulations(instrument);
+
+            let sound;
+
+            if (state.cycleMode) {
+                // Cycle mode: get current sound and cycle to next available (excluding silence)
+                const currentSound = instrument.pattern[stepIndex] || 'silence';
+
+                // Build cycle order starting with current selection, then others (no silence in cycle)
+                let cycleOrder = [state.currentSound, ...availableArticulations.filter(a => a !== state.currentSound)];
+                // Filter to only available articulations and exclude silence from cycling
+                cycleOrder = cycleOrder.filter(a => availableArticulations.includes(a) && a !== 'silence');
+
+                // Find current position and get next
+                const currentIdx = cycleOrder.indexOf(currentSound);
+                const nextIdx = (currentIdx + 1) % cycleOrder.length;
+                sound = cycleOrder[nextIdx];
+            } else {
+                // Normal mode: use selected sound if available for this instrument
+                sound = state.currentSound;
+                if (!availableArticulations.includes(sound)) {
+                    // If selected sound not available, use first available
+                    sound = availableArticulations[0];
+                }
+            }
+
+            if (sound === 'clear') {
+                clearBox(box, instrIndex, stepIndex);
+                return;
+            }
+
+            // Remove all sound classes
+            box.classList.remove('active', 'tone', 'slap', 'bass', 'mute', 'silence');
+
+            // Set new sound
+            if (soundTypes[sound]) {
+                box.classList.add(soundTypes[sound].class);
+                box.textContent = soundTypes[sound].char;
+                instrument.pattern[stepIndex] = sound;
+            }
+
+            // Only save immediately if not dragging (drag saves at end)
+            if (!state.isDragging) {
+                saveToLocalStorage();
+            }
+        }
+
+        // Toggle cycle mode
+        function toggleCycleMode() {
+            state.cycleMode = !state.cycleMode;
+            const btn = document.getElementById('cycleBtn');
+            if (state.cycleMode) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        }
+
+        function clearBox(box, instrIndex, stepIndex) {
+            box.classList.remove('active', 'tone', 'slap', 'ghost');
+            box.classList.add('silence');
+            box.textContent = '—';
+            state.instruments[instrIndex].pattern[stepIndex] = 'silence';
+            saveToLocalStorage();
+        }
+
+        function clearAll() {
+            if (confirm('Clear all patterns?')) {
+                state.instruments.forEach(instr => {
+                    instr.pattern = new Array(state.beats * state.subdivisions).fill(null);
+                });
+                updateGrid();
+            }
+        }
+
+        /* COMMENTED OUT - Add Instrument functionality (kept for future use)
+        function addInstrument() {
+            // Show instrument type selection
+            showAddInstrumentDialog();
+        }
+
+        function showAddInstrumentDialog() {
+            // Create modal overlay
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            overlay.style.cssText = `
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.8); z-index: 1000;
+                display: flex; align-items: center; justify-content: center;
+            `;
+
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                background: var(--bg-secondary); border: 1px solid var(--border-color);
+                border-radius: 10px; padding: 20px; min-width: 350px; max-width: 450px;
+            `;
+
+            let html = `
+                <h3 style="color: var(--accent-primary); margin-bottom: 15px; font-family: 'Orbitron', sans-serif;">Add Instrument</h3>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px;">
+            `;
+
+            // Add buttons for each instrument type
+            for (const [typeId, type] of Object.entries(instrumentTypes)) {
+                html += `
+                    <button class="btn" onclick="quickAddInstrument('${typeId}')" style="padding: 15px 10px; font-size: 14px;">
+                        <span style="font-size: 24px; display: block;">${type.icon}</span>
+                        ${type.name}
+                    </button>
+                `;
+            }
+
+            html += `
+                </div>
+                <div style="display: flex; justify-content: center;">
+                    <button class="btn" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+                </div>
+            `;
+
+            modal.innerHTML = html;
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+        }
+
+        function quickAddInstrument(typeId) {
+            const type = instrumentTypes[typeId];
+
+            // For djembe, auto-assign next sample set
+            let sampleSet = 'default';
+            let name = type.name;
+
+            if (typeId === 'djembe') {
+                sampleSet = djembeSampleSets[djembeCounter % djembeSampleSets.length];
+                djembeCounter++;
+                // Count existing djembes
+                const djembeCount = state.instruments.filter(i => i.type === 'djembe').length + 1;
+                name = `Djembe ${djembeCount}`;
+            } else {
+                // Count existing instruments of this type
+                const count = state.instruments.filter(i => i.type === typeId).length + 1;
+                if (count > 1) {
+                    name = `${type.name} ${count}`;
+                }
+            }
+
+            state.instruments.push({
+                id: 'instr_' + Date.now(),
+                name: name,
+                icon: type.icon,
+                type: typeId,
+                sampleSet: sampleSet,
+                pattern: new Array(state.beats * state.subdivisions).fill(null),
+                visible: true,
+                muted: false,
+                volume: 1.0,
+                focused: false
+            });
+
+            // Close modal
+            document.querySelector('.modal-overlay')?.remove();
+
+            updateInstrumentToolbar();
+            updateGrid();
+        }
+
+        // Legacy function - now unused
+        function confirmAddInstrument() {
+            const typeId = document.getElementById('newInstrType')?.value || 'djembe';
+            quickAddInstrument(typeId);
+        }
+        END COMMENTED OUT - Add Instrument functionality */
+
+        function toggleInstrumentVisibility(instrIndex) {
+            const instrument = state.instruments[instrIndex];
+            instrument.visible = instrument.visible === false ? true : false;
+
+            // Update the row visually
+            const rows = document.querySelectorAll('.instrument-row');
+            const row = rows[instrIndex];
+            if (row) {
+                if (instrument.visible) {
+                    row.classList.remove('hidden-row');
+                } else {
+                    row.classList.add('hidden-row');
+                }
+            }
+
+            // Update toolbar icon
+            const toolbarIcons = document.querySelectorAll('.instrument-toolbar-icon');
+            const toolbarIcon = toolbarIcons[instrIndex];
+            if (toolbarIcon) {
+                if (instrument.visible) {
+                    toolbarIcon.classList.remove('hidden-icon');
+                } else {
+                    toolbarIcon.classList.add('hidden-icon');
+                }
+            }
+
+            saveToLocalStorage();
+        }
+
+        function toggleInstrumentMute(instrIndex) {
+            const instrument = state.instruments[instrIndex];
+            instrument.muted = instrument.muted === true ? false : true;
+
+            // Update the row visually
+            const rows = document.querySelectorAll('.instrument-row');
+            const row = rows[instrIndex];
+            if (row) {
+                const icon = row.querySelector('.instrument-icon');
+                if (instrument.muted) {
+                    row.classList.add('muted-row');
+                    if (icon) {
+                        icon.classList.add('muted');
+                        icon.title = 'Unmute instrument';
+                    }
+                } else {
+                    row.classList.remove('muted-row');
+                    if (icon) {
+                        icon.classList.remove('muted');
+                        icon.title = 'Mute instrument';
+                    }
+                }
+            }
+
+            saveToLocalStorage();
+        }
+
+        function toggleInstrumentFocus(instrIndex) {
+            const instrument = state.instruments[instrIndex];
+            const grid = document.getElementById('notationGrid');
+
+            // If this instrument is already focused, unfocus it
+            if (instrument.focused) {
+                instrument.focused = false;
+                grid.classList.remove('has-focus');
+            } else {
+                // Unfocus all other instruments
+                state.instruments.forEach(instr => instr.focused = false);
+                // Focus this one
+                instrument.focused = true;
+                grid.classList.add('has-focus');
+            }
+
+            // Update rows visually
+            const rows = document.querySelectorAll('.instrument-row');
+            rows.forEach((row, idx) => {
+                const btn = row.querySelector('.instrument-focus-btn');
+                if (state.instruments[idx].focused) {
+                    row.classList.add('focused-row');
+                    if (btn) {
+                        btn.classList.add('focused');
+                        btn.title = 'Unfocus instrument';
+                    }
+                } else {
+                    row.classList.remove('focused-row');
+                    if (btn) {
+                        btn.classList.remove('focused');
+                        btn.title = 'Focus on this instrument';
+                    }
+                }
+            });
+
+            saveToLocalStorage();
+        }
+
+        // Reverb UI control
+        function updateReverb(value) {
+            const amount = parseFloat(value);
+            setReverbAmount(amount);
+            document.getElementById('reverbValue').textContent = Math.round(amount * 100) + '%';
+        }
+
+        // Metronome functions
+        function toggleMetronome() {
+            metronomeEnabled = !metronomeEnabled;
+            const btn = document.getElementById('metronomeBtn');
+            if (metronomeEnabled) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        }
+
+        function updateMetronomeVolume(value) {
+            metronomeVolume = parseFloat(value);
+            document.getElementById('metronomeVolumeValue').textContent = Math.round(metronomeVolume * 100) + '%';
+        }
+
+        // Swing functions - per beat position
+        function updateSwingFactor(value) {
+            state.swing.factor = parseInt(value);
+            document.getElementById('swingFactorValue').textContent = value;
+            // If playing, restart to apply new swing timing
+            if (state.isPlaying) {
+                stopPlayback();
+                startPlayback();
+            }
+            saveToLocalStorage();
+        }
+
+        function updateSwingBeat(beat, value) {
+            const val = parseInt(value);
+            state.swing[beat] = val * 2; // Always multiply by 2 for internal use
+            document.getElementById('swing' + beat + 'Value').textContent = val;
+            // Update slider fill (centered at 50% for 0, range -50 to +50)
+            const slider = document.getElementById('swing' + beat);
+            if (slider) {
+                const fillPercent = ((val + 50) / 100) * 100;
+                slider.style.setProperty('--slider-fill', fillPercent + '%');
+            }
+            // If playing, restart to apply new swing timing
+            if (state.isPlaying) {
+                stopPlayback();
+                startPlayback();
+            }
+            saveToLocalStorage();
+        }
+
+
+
+        function playMetronomeClick(isDownbeat) {
+            if (!metronomeEnabled || metronomeVolume === 0) return;
+
+            // Resume audio context if suspended
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+
+            // Initialize reverb if not done
+            if (!reverbNode) {
+                initReverb();
+            }
+
+            // Use shekere samples for metronome
+            const soundType = isDownbeat ? 'slap' : 'tone';
+            const samples = audioSamples['shekere']?.['default']?.[soundType];
+
+            if (!samples || samples.length === 0) return;
+
+            const buffer = samples[0];
+            const source = audioContext.createBufferSource();
+            source.buffer = buffer;
+
+            const gainNode = audioContext.createGain();
+            gainNode.gain.value = metronomeVolume;
+
+            source.connect(gainNode);
+            gainNode.connect(dryGain);
+            gainNode.connect(reverbNode);
+
+            source.start(0);
+        }
+
+        function toggleAllInstruments() {
+            // Check if any are visible
+            const anyVisible = state.instruments.some(instr => instr.visible !== false);
+
+            // If any are visible, hide all. Otherwise, show all.
+            const newVisibility = !anyVisible;
+
+            state.instruments.forEach((instrument) => {
+                instrument.visible = newVisibility;
+            });
+
+            // Update all rows visually
+            const rows = document.querySelectorAll('.instrument-row');
+            rows.forEach((row) => {
+                if (newVisibility) {
+                    row.classList.remove('hidden-row');
+                } else {
+                    row.classList.add('hidden-row');
+                }
+            });
+
+            // Update toolbar icons
+            const toolbarIcons = document.querySelectorAll('.instrument-toolbar-icon');
+            toolbarIcons.forEach((icon) => {
+                if (newVisibility) {
+                    icon.classList.remove('hidden-icon');
+                } else {
+                    icon.classList.add('hidden-icon');
+                }
+            });
+
+            saveToLocalStorage();
+        }
+
+        // Playback
+        function togglePlayback() {
+            if (state.isPlaying) {
+                stopPlayback();
+            } else {
+                startPlayback();
+            }
+        }
+
+        function startPlayback() {
+            state.isPlaying = true;
+            state.currentStep = 0;
+            document.getElementById('playBtn').textContent = '⏹ Stop';
+            document.getElementById('playBtn').classList.remove('btn-play');
+            document.getElementById('playBtn').classList.add('btn-stop');
+
+            // Use swing-aware scheduling
+            scheduleNextStep();
+        }
+
+        function scheduleNextStep() {
+            if (!state.isPlaying) return;
+
+            const totalSteps = state.beats * state.subdivisions;
+            const baseStepMs = (60000 / state.tempo) / state.subdivisions;
+
+            // Precompute all swing delays for the pattern
+            const beatLabels = ['A', 'B', 'C', 'D'];
+            const swingFactor = (state.swing.factor !== undefined ? state.swing.factor : 100) / 100;
+            let swingValues = [];
+            for (let i = 0; i < totalSteps; i++) {
+                const posInBeat = i % state.subdivisions;
+                const beatLabel = beatLabels[posInBeat] || 'A';
+                // Use swing value (already multiplied by 2 in updateSwingBeat)
+                const swingValue = (state.swing[beatLabel] || 0) + 20;
+                swingValues.push(swingValue);
+            }
+            // Calculate raw swing amounts
+            let swingAmounts = swingValues.map(v => swingFactor * (v / 100) * baseStepMs);
+            // Normalize so sum of all delays = totalSteps * baseStepMs
+            const totalSwing = swingAmounts.reduce((a, b) => a + b, 0);
+            const totalBase = totalSteps * baseStepMs;
+            const norm = (totalBase - totalSwing) / totalSteps;
+            let stepDelays = swingAmounts.map(a => a + norm);
+
+            // Use the delay for the current step
+            const delay = stepDelays[state.currentStep % totalSteps];
+
+            state.playbackTimeout = setTimeout(() => {
+                playStep(state.currentStep);
+                state.currentStep = (state.currentStep + 1) % totalSteps;
+                scheduleNextStep();
+            }, delay);
+        }
+
+        function stopPlayback() {
+            state.isPlaying = false;
+            clearInterval(state.playbackInterval);
+            clearTimeout(state.playbackTimeout);
+            document.getElementById('playBtn').textContent = '▶ Play';
+            document.getElementById('playBtn').classList.add('btn-play');
+            document.getElementById('playBtn').classList.remove('btn-stop');
+            document.getElementById('currentBeat').textContent = '-';
+
+            // Remove all playing indicators
+            document.querySelectorAll('.notation-box.playing').forEach(box => {
+                box.classList.remove('playing');
+                box.classList.remove('keep-size');
+            });
+            document.querySelectorAll('.notation-box.current-step').forEach(box => {
+                box.classList.remove('current-step');
+            });
+            document.querySelectorAll('.notation-box.playhead-active').forEach(box => {
+                box.classList.remove('playhead-active');
+            });
+            // Remove beat number arrow
+            document.querySelectorAll('.beat-number.current-beat').forEach(el => {
+                el.classList.remove('current-beat');
+            });
+        }
+
+        function playStep(step) {
+            // Update current beat display
+            const beat = Math.floor(step / state.subdivisions) + 1;
+            const sub = (step % state.subdivisions) + 1;
+            document.getElementById('currentBeat').textContent = `${beat}.${sub}`;
+
+            // Update circular view if in circular mode
+            if (state.viewMode === 'circular') {
+                drawCircularView();
+            }
+
+            // Play metronome click only on beat positions (first subdivision of each beat)
+            const isDownbeat = (step % state.subdivisions) === 0;
+            if (isDownbeat) {
+                const isFirstBeat = step === 0; // First beat of the pattern
+                playMetronomeClick(isFirstBeat);
+            }
+
+            // Remove previous playing indicators
+            document.querySelectorAll('.notation-box.playing').forEach(box => {
+                box.classList.remove('playing');
+                box.classList.remove('keep-size');
+            });
+            document.querySelectorAll('.notation-box.current-step').forEach(box => {
+                box.classList.remove('current-step');
+            });
+            document.querySelectorAll('.notation-box.playhead-active').forEach(box => {
+                box.classList.remove('playhead-active');
+            });
+            // Remove previous beat number arrow
+            document.querySelectorAll('.beat-number.current-beat').forEach(el => {
+                el.classList.remove('current-beat');
+            });
+
+            // Add arrow to current beat number
+            const beatNumbers = document.querySelectorAll('.beat-number');
+            if (beatNumbers[step]) {
+                beatNumbers[step].classList.add('current-beat');
+            }
+
+            // Highlight current step column with playhead
+            document.querySelectorAll(`.notation-box[data-step="${step}"]`).forEach(box => {
+                box.classList.add('playing');
+                box.classList.add('current-step');
+                box.classList.add('playhead-active');
+
+                // Add keep-size class if enabled
+                if (debugSettings.keepSize) {
+                    box.classList.add('keep-size');
+                }
+
+                // Trigger actual sounds (skip hidden and muted instruments)
+                const instrIndex = parseInt(box.dataset.instrument);
+                const instrument = state.instruments[instrIndex];
+                if (instrument.visible !== false && instrument.muted !== true) {
+                    const sound = instrument.pattern[step];
+                    if (sound && sound !== 'silence') {
+                        // Play actual audio sample with instrument-specific settings
+                        playSound(sound, instrument);
+                    }
+                }
+            });
+        }
+
+        // Local Storage
+        function saveToLocalStorage() {
+            const data = {
+                rhythmName: state.rhythmName,
+                beats: state.beats,
+                subdivisions: state.subdivisions,
+                tempo: state.tempo,
+                swing: state.swing,
+                themeColor: state.themeColor,
+                instruments: state.instruments
+            };
+            localStorage.setItem('rhythmNotation', JSON.stringify(data));
+        }
+
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem('rhythmNotation');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    state.rhythmName = data.rhythmName || 'Kassa';
+                    state.beats = data.beats || 4;
+                    state.subdivisions = data.subdivisions || 4;
+                    state.tempo = data.tempo || 100;
+                    // Handle both old (number) and new (object) swing formats
+                    if (typeof data.swing === 'object') {
+                        state.swing = data.swing;
+                    } else {
+                        state.swing = { factor: data.swing || 35, A: 0, B: 15, C: 0, D: 15 };
+                    }
+                    state.themeColor = data.themeColor || '#fcd116';
+                    state.instruments = data.instruments || state.instruments;
+
+                    // Update UI
+                    document.getElementById('rhythmName').value = state.rhythmName;
+                    document.getElementById('beatCount').value = state.beats;
+                    document.getElementById('subdivisions').value = state.subdivisions;
+                    document.getElementById('tempo').value = state.tempo;
+                    document.getElementById('tempoDisplay').innerHTML = `${state.tempo}<span>BPM</span>`;
+
+                    // Update swing sliders
+                    updateSwingUI();
+
+                } catch (e) {
+                    console.error('Error loading saved notation:', e);
+                }
+            }
+        }
+
+        // Update swing UI from state
+        function updateSwingUI() {
+            // Factor is in debug panel
+            const factorSlider = document.getElementById('swingFactor');
+            if (factorSlider) {
+                factorSlider.value = state.swing.factor;
+                document.getElementById('swingFactorValue').textContent = state.swing.factor;
+            }
+
+            // Beat sliders (A, B, C, D) range from -50 to +50
+            ['A', 'B', 'C', 'D'].forEach(beat => {
+                const slider = document.getElementById('swing' + beat);
+                const value = state.swing[beat] || 0;
+                if (slider) {
+                    slider.value = value;
+                    // Fill: -50 = 0%, 0 = 50%, +50 = 100%
+                    const fillPercent = ((value + 50) / 100) * 100;
+                    slider.style.setProperty('--slider-fill', fillPercent + '%');
+                    document.getElementById('swing' + beat + 'Value').textContent = value;
+                }
+            });
+        }
+
+        // Export rhythm to JSON file
+        function exportRhythm() {
+            const data = {
+                rhythmName: state.rhythmName,
+                beats: state.beats,
+                subdivisions: state.subdivisions,
+                tempo: state.tempo,
+                swing: state.swing,
+                themeColor: state.themeColor,
+                instruments: state.instruments,
+                exportedAt: new Date().toISOString()
+            };
+
+            const jsonString = JSON.stringify(data, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${state.rhythmName.replace(/\s+/g, '_')}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Trigger file import
+        function importRhythm() {
+            document.getElementById('importFile').click();
+        }
+
+        // Handle file import
+        function handleFileImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    loadRhythmData(data);
+                    alert(`Loaded rhythm: ${data.rhythmName}`);
+                } catch (err) {
+                    alert('Error importing file: Invalid JSON format');
+                    console.error('Import error:', err);
+                }
+            };
+            reader.readAsText(file);
+
+            // Reset file input
+            event.target.value = '';
+        }
+
+        // Load rhythm data from object (used by import and example)
+        function loadRhythmData(data) {
+            state.rhythmName = data.rhythmName || 'Imported Rhythm';
+            state.beats = data.beats || 4;
+            state.subdivisions = data.subdivisions || 4;
+            state.tempo = data.tempo || 100;
+            // Handle both old (number) and new (object) swing formats
+            if (typeof data.swing === 'object') {
+                state.swing = data.swing;
+            } else {
+                state.swing = { factor: data.swing || 35, A: 0, B: 15, C: 0, D: 15 };
+            }
+            state.themeColor = data.themeColor || '#fcd116';
+            state.instruments = data.instruments || state.instruments;
+
+            // Update UI
+            document.getElementById('rhythmName').value = state.rhythmName;
+            document.getElementById('beatCount').value = state.beats;
+            document.getElementById('subdivisions').value = state.subdivisions;
+            document.getElementById('tempo').value = state.tempo;
+            document.getElementById('tempoDisplay').innerHTML = `${state.tempo}<span>BPM</span>`;
+
+            // Update swing sliders
+            updateSwingUI();
+            setSwingFromMeta(data.swing);
+
+            updateGrid();
+        }
+
+        function setSwingFromMeta(swingMeta) {
+            // swingMeta is an object like {A: 0, B: 15, C: 0, D: 15}
+            ['A', 'B', 'C', 'D'].forEach(beat => {
+                if (swingMeta.hasOwnProperty(beat)) {
+                    const val = parseInt(swingMeta[beat]);
+                    state.swing[beat] = val * 2; // Internal value
+                    // Update slider and label
+                    const slider = document.getElementById('swing' + beat);
+                    const label = document.getElementById('swing' + beat + 'Value');
+                    if (slider) {
+                        slider.value = val;
+                        const fillPercent = ((val + 50) / 100) * 100;
+                        slider.style.setProperty('--slider-fill', fillPercent + '%');
+                    }
+                    if (label) {
+                        label.textContent = val;
+                    }
+                }
+            });
+            // If playing, restart to apply new swing timing
+            if (state.isPlaying) {
+                stopPlayback();
+                startPlayback();
+            }
+            saveToLocalStorage();
+        }
+
+
+        // Helper to convert notation format: Open=tone, Slap=slap, Bass=bass, Muffled=mute, null=silence
+        function convertStep(step) {
+            if (!step) return 'silence';
+            const lower = step.toLowerCase();
+            if (lower === 'open') return 'tone';
+            if (lower === 'slap') return 'slap';
+            if (lower === 'bass') return 'bass';
+            if (lower === 'muffled') return 'mute';
+            return 'silence';
+        }
+
+        // Load example rhythm - Kassa (Malinke harvest rhythm from Guinea)
+        function loadExample() {
+            const kassaRhythm = {
+                rhythmName: 'Kassa',
+                beats: 4,
+                subdivisions: 4, // 16 steps = 4 beats x 4 subdivisions
+                tempo: 100,
+                swing: {
+                    factor: 100,
+                    A: 0,
+                    B: 15,
+                    C: 0,
+                    D: 15
+                },
+                themeColor: '#fcd116',
+                instruments: [
+                    {
+                        id: 'djembe1',
+                        name: 'Djembe 1',
+                        icon: '🥁',
+                        type: 'djembe',
+                        sampleSet: 'One',
+                        visible: true,
+                        muted: false,
+                        volume: 1.0,
+                        focused: false,
+                        // Open, Open, Slap, Slap, null, null, Slap, Slap, Open, Open, Slap, Slap, Bass, null, Slap, Slap
+                        pattern: ['tone', 'tone', 'slap', 'slap', 'silence', 'silence', 'slap', 'slap', 'tone', 'tone', 'slap', 'slap', 'bass', 'silence', 'slap', 'slap']
+                    },
+                    {
+                        id: 'djembe2',
+                        name: 'Djembe 2',
+                        icon: '🥁',
+                        type: 'djembe',
+                        sampleSet: 'Two',
+                        visible: true,
+                        muted: false,
+                        volume: 1.0,
+                        focused: false,
+                        // Slap, null, null, Slap, Slap, null, Open, Open, Slap, null, null, Slap, Slap, null, Open, Open
+                        pattern: ['slap', 'silence', 'silence', 'slap', 'slap', 'silence', 'tone', 'tone', 'slap', 'silence', 'silence', 'slap', 'slap', 'silence', 'tone', 'tone']
+                    },
+                    {
+                        id: 'djembe3',
+                        name: 'Djembe 3',
+                        icon: '🥁',
+                        type: 'djembe',
+                        sampleSet: 'Three',
+                        visible: true,
+                        muted: false,
+                        volume: 1.0,
+                        focused: false,
+                        // Open, null, Slap, Slap, null, Bass, Slap, Slap, Bass, null, Slap, Slap, Bass, Bass, Slap, Slap
+                        pattern: ['tone', 'silence', 'slap', 'slap', 'silence', 'bass', 'slap', 'slap', 'bass', 'silence', 'slap', 'slap', 'bass', 'bass', 'slap', 'slap']
+                    },
+                    {
+                        id: 'kenkeni1',
+                        name: 'Kenkeni',
+                        icon: '🪘',
+                        type: 'kenkeni',
+                        sampleSet: 'default',
+                        visible: true,
+                        muted: false,
+                        volume: 1.0,
+                        focused: false,
+                        // Open, Open, null, null, null, null, Muffled, null, Open, Open, null, null, null, null, Muffled, null
+                        pattern: ['tone', 'tone', 'silence', 'silence', 'silence', 'silence', 'mute', 'silence', 'tone', 'tone', 'silence', 'silence', 'silence', 'silence', 'mute', 'silence']
+                    },
+                    {
+                        id: 'kenkeni_bell1',
+                        name: 'Kenkeni Bell',
+                        icon: '🔔',
+                        type: 'kenkeni_bell',
+                        sampleSet: 'default',
+                        visible: true,
+                        muted: false,
+                        volume: 1.0,
+                        focused: false,
+                        // Open, Open, null, Open, null, Open, Open, null, Open, Open, null, Open, null, Open, Open, null
+                        pattern: ['tone', 'tone', 'silence', 'tone', 'silence', 'tone', 'tone', 'silence', 'tone', 'tone', 'silence', 'tone', 'silence', 'tone', 'tone', 'silence']
+                    },
+                    {
+                        id: 'sangban1',
+                        name: 'Sangban',
+                        icon: '🪘',
+                        type: 'sangban',
+                        sampleSet: 'default',
+                        visible: true,
+                        muted: false,
+                        volume: 1.0,
+                        focused: false,
+                        // Muffled, null, null, Open, null, null, Muffled, null, Muffled, null, null, Open, null, null, Muffled, null
+                        pattern: ['mute', 'silence', 'silence', 'tone', 'silence', 'silence', 'mute', 'silence', 'mute', 'silence', 'silence', 'tone', 'silence', 'silence', 'mute', 'silence']
+                    },
+                    {
+                        id: 'sangban_bell1',
+                        name: 'Sangban Bell',
+                        icon: '🔔',
+                        type: 'sangban_bell',
+                        sampleSet: 'default',
+                        visible: true,
+                        muted: false,
+                        volume: 1.0,
+                        focused: false,
+                        // Open, null, Open, Open, null, Open, Open, null, Open, null, Open, Open, null, Open, Open, null
+                        pattern: ['tone', 'silence', 'tone', 'tone', 'silence', 'tone', 'tone', 'silence', 'tone', 'silence', 'tone', 'tone', 'silence', 'tone', 'tone', 'silence']
+                    },
+                    {
+                        id: 'doundoun1',
+                        name: 'Doundoun',
+                        icon: '🪘',
+                        type: 'doundoun',
+                        sampleSet: 'default',
+                        visible: true,
+                        muted: false,
+                        volume: 1.0,
+                        focused: false,
+                        // Open, null, Open, Open, null, null, null, null, null, null, Open, Open, null, Open, Open, null
+                        pattern: ['tone', 'silence', 'tone', 'tone', 'silence', 'silence', 'silence', 'silence', 'silence', 'silence', 'tone', 'tone', 'silence', 'tone', 'tone', 'silence']
+                    },
+                    {
+                        id: 'doundoun_bell1',
+                        name: 'Doundoun Bell',
+                        icon: '🔔',
+                        type: 'doundoun_bell',
+                        sampleSet: 'default',
+                        visible: true,
+                        muted: false,
+                        volume: 1.0,
+                        focused: false,
+                        // Open, null, Open, Open, null, Open, Open, null, Open, null, Open, Open, null, Open, Open, null
+                        pattern: ['tone', 'silence', 'tone', 'tone', 'silence', 'tone', 'tone', 'silence', 'tone', 'silence', 'tone', 'tone', 'silence', 'tone', 'tone', 'silence']
+                    }
+                ]
+            };
+
+            loadRhythmData(kassaRhythm);
+        }
+
+        // For future integration with map - get rhythm data object
+        function getRhythmData() {
+            return {
+                rhythmName: state.rhythmName,
+                beats: state.beats,
+                subdivisions: state.subdivisions,
+                tempo: state.tempo,
+                themeColor: state.themeColor,
+                instruments: state.instruments
+            };
+        }
+
+        // For future integration - set rhythm from map data
+        function setRhythmFromMap(rhythmData, themeColor) {
+            if (themeColor) {
+                rhythmData.themeColor = themeColor;
+                // Could apply theme color to UI elements here
+            }
+            loadRhythmData(rhythmData);
+        }
+    </script>
+</body>
+</html>

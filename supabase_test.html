@@ -1,0 +1,233 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Rhythms — GraphQL Object View</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; color: #111; }
+        .rhythm { border:1px solid #eee; padding:10px; margin-bottom:8px; border-radius:6px; }
+        .meta { color:#666; font-size:13px; }
+        button { padding:6px 10px; margin-bottom:12px; }
+        pre { background:#f6f6f6; padding:8px; border-radius:6px; overflow:auto; }
+    </style>
+
+    <!-- supabase-js UMD bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<h1>Rhythms — GraphQL (object-first)</h1>
+
+<div>
+    <input id="search" placeholder="Search title or summary (optional)" style="padding:6px;width:300px" />
+    <button id="btnLoad">Load rhythms</button>
+    <span id="status" class="meta"></span>
+</div>
+
+<div id="list"></div>
+
+<script>
+    // CONFIG - set these
+    const PROJECT_REF = 'qbnatagqeeboolqpucoj'; // change if needed
+    const ANON_KEY = '<ANON_KEY>'; // <-- replace with your anon key
+
+    if (!ANON_KEY || ANON_KEY === '<ANON_KEY>') {
+        document.getElementById('status').textContent = 'Set ANON_KEY in script first.';
+        document.getElementById('btnLoad').disabled = true;
+        throw new Error('Set ANON_KEY in script');
+    }
+
+    const GRAPHQL_URL = `https://${PROJECT_REF}.supabase.co/graphql/v1`;
+
+    // Minimal GraphQL fetch wrapper using fetch (no extra libs).
+    // Uses supabase-js only to show how to set realtime/auth if needed (optional).
+    const supabaseClient = supabase.createClient(`https://${PROJECT_REF}.supabase.co`, ANON_KEY);
+
+    class Rhythm {
+        // row: plain object from GraphQL response
+        constructor(row = {}) {
+            // shallow copy all keys so you can do rhythm.title, rhythm.summary, ...
+            Object.assign(this, row);
+
+            // normalize common field names: name -> title, description -> summary
+            if (this.name && !this.title) this.title = this.name;
+            if (this.description && !this.summary) this.summary = this.description;
+
+            // convert numeric strings if needed
+            if (this.bpm !== undefined && this.bpm !== null) {
+                const n = Number(this.bpm);
+                if (!Number.isNaN(n)) this.bpm = n;
+            }
+        }
+
+        toString() {
+            return `${this.title || '(untitled)'} — ${this.summary || ''}`;
+        }
+    }
+
+    class GraphQLService {
+        constructor({ url, anonKey }) {
+            this.url = url;
+            this.anonKey = anonKey;
+        }
+
+        // Execute a GraphQL query and return data or throw an error
+        async request(query, variables = {}) {
+            const res = await fetch(this.url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': this.anonKey,       // supabase GraphQL expects apikey / Authorization
+                    'Authorization': `Bearer ${this.anonKey}`,
+                },
+                body: JSON.stringify({ query, variables }),
+            });
+
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(`Network error: ${res.status} ${res.statusText} — ${text}`);
+            }
+            const payload = await res.json();
+            if (payload.errors && payload.errors.length) {
+                // return first error message for clarity
+                const msg = payload.errors.map(e => e.message).join('; ');
+                throw new Error(`GraphQL error: ${msg}`);
+            }
+            return payload.data;
+        }
+
+        // Fetch rhythms: specify fields you want. This returns plain objects.
+        // The GraphQL selection below uses a collection pattern that pg_graphql exposes:
+        // <TableName>Collection { edges { node { ... } } }
+        async fetchRhythms({ search = '', limit = 500, fields = ['id','name','description','bpm','created_at'] } = {}) {
+            // Build selection string from fields
+            const selection = fields.join('\n            ');
+            // We'll request the collection and map edges->node
+            // If you name your table something else, change "rhythmsCollection" accordingly.
+            // If your table name has capitalization or different naming, adapt it.
+            const query = `
+          query FetchRhythms($limit: Int!, $filter: String) {
+            rhythmsCollection(first: $limit, where: $filter) {
+              edges {
+                node {
+                  ${selection}
+                }
+              }
+            }
+          }
+        `;
+
+            // pg_graphql 'where' expects an object shaped to the reflected GraphQL schema.
+            // To keep this simple and robust we will avoid complex filters when search is empty.
+            // If a search term is provided, we'll filter using the "name" or "description" fields
+            // via a contains operator if available. Different pg_graphql versions may differ on filters.
+            // Fallback: fetch all and filter client-side.
+            if (!search) {
+                // No filter: request first N nodes
+                const data = await this.request(query, { limit });
+                const edges = data?.rhythmsCollection?.edges || [];
+                return edges.map(e => e.node);
+            } else {
+                // Attempt server-side simple filter: we try to call collection with a 'where' that
+                // uses OR on name/description using `_ilike` style if schema supports it.
+                // If your GraphQL schema exposes filters differently, this may need adjusting.
+                // We'll attempt a generic approach and fall back to client-side filtering.
+                // Try server-side filter building:
+                let serverFilterQuery = `
+            rhythmsCollection(first: $limit, where: { _or: [
+              { name: { _ilike: $like } },
+              { description: { _ilike: $like } }
+            ] }) {
+              edges { node { ${selection} } }
+            }
+          `;
+                const query2 = `
+            query FetchRhythmsFiltered($limit: Int!, $like: String!) {
+              ${serverFilterQuery}
+            }
+          `;
+                try {
+                    const data = await this.request(query2, { limit, like: '%' + search + '%' });
+                    const edges = data?.rhythmsCollection?.edges || [];
+                    return edges.map(e => e.node);
+                } catch (err) {
+                    // If server-side filtering fails (schema mismatch), fetch all and filter client-side
+                    console.warn('Server filter failed, falling back to client-side filter:', err.message);
+                    const all = await this.request(query, { limit });
+                    const rows = (all?.rhythmsCollection?.edges || []).map(e => e.node);
+                    const lower = search.toLowerCase();
+                    return rows.filter(r => (r.name || '').toLowerCase().includes(lower) || (r.description || '').toLowerCase().includes(lower));
+                }
+            }
+        }
+    }
+
+    // UI wiring
+    (function main() {
+        const statusEl = document.getElementById('status');
+        const listEl = document.getElementById('list');
+        const btn = document.getElementById('btnLoad');
+        const searchInput = document.getElementById('search');
+
+        const gql = new GraphQLService({ url: GRAPHQL_URL, anonKey: ANON_KEY });
+
+        async function load() {
+            listEl.innerHTML = '';
+            statusEl.textContent = 'Loading...';
+            const search = searchInput.value.trim();
+            try {
+                // Pick fields you want returned — simple object mapping follows
+                const fields = ['id','name','description','bpm','created_at'];
+                const rows = await gql.fetchRhythms({ search, limit: 1000, fields });
+
+                // Map to Rhythm instances
+                const rhythms = rows.map(r => new Rhythm(r || {}));
+
+                statusEl.textContent = `Loaded ${rhythms.length} rhythm(s).`;
+
+                if (rhythms.length === 0) {
+                    listEl.innerHTML = '<div class="meta">No rhythms found or permissions (RLS) prevent access.</div>';
+                    return;
+                }
+
+                rhythms.forEach(r => {
+                    const el = document.createElement('div');
+                    el.className = 'rhythm';
+                    el.innerHTML = `
+              <div style="font-weight:700">${escapeHtml(r.title || r.name || '(untitled)')}</div>
+              <div class="meta">${escapeHtml(r.summary || r.description || '')}</div>
+              <div style="margin-top:8px;"><strong>BPM:</strong> ${escapeHtml(String(r.bpm ?? '—'))}</div>
+              <div style="margin-top:8px;"><pre>${escapeHtml(JSON.stringify(r, null, 2))}</pre></div>
+            `;
+                    listEl.appendChild(el);
+                });
+
+                // Example usage like Unity:
+                // const rhythm = rhythms[0];
+                // console.log(rhythm.title, rhythm.summary);
+            } catch (err) {
+                console.error(err);
+                statusEl.textContent = 'Error: ' + (err.message || err.toString());
+                listEl.innerHTML = `<div class="meta">Error: ${escapeHtml(err.message || String(err))}</div>`;
+            }
+        }
+
+        btn.addEventListener('click', load);
+        searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') load(); });
+
+        // auto-load once
+        load();
+
+        // helper
+        function escapeHtml(s) {
+            if (s === null || s === undefined) return '';
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+    })();
+</script>
+</body>
+</html>

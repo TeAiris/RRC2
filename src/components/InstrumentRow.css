@@ -1,0 +1,29 @@
+/* ...existing code... */
+/* ...existing code... */
+
+}
+  /* ...existing code... */
+  position: relative;
+  z-index: 1;
+.beat-grid {
+
+}
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+.volume-controls {
+
+}
+  /* Remove any fixed width if present */
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+.instrument-name {
+
+}
+  /* ...existing code... */
+  gap: 8px;
+  align-items: center;
+  display: flex;
+.instrument-row {
+

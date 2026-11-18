@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>11×17 Booklet → Ordered Split PDF</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #0b0b0b;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .panel {
+            background: #141414;
+            padding: 24px;
+            border-radius: 12px;
+            width: 400px;
+            box-shadow: 0 10px 40px rgba(0,0,0,.6);
+        }
+
+        h1 {
+            margin-top: 0;
+            font-size: 18px;
+            text-align: center;
+        }
+
+        input, button {
+            width: 100%;
+            margin-top: 12px;
+            padding: 10px;
+            font-size: 14px;
+            border-radius: 6px;
+            border: none;
+        }
+
+        input {
+            background: #222;
+            color: #fff;
+        }
+
+        button {
+            background: #1e88e5;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            background: #555;
+        }
+
+        .status {
+            margin-top: 12px;
+            font-size: 13px;
+            text-align: center;
+            color: #aaa;
+        }
+    </style>
+</head>
+
+<body>
+<div class="panel">
+    <h1>11×17 Booklet → Ordered Split PDF</h1>
+    <input type="file" id="pdfInput" accept="application/pdf">
+    <button id="splitBtn" disabled>Split & Export PDF</button>
+    <div class="status" id="status">Upload booklet PDF</div>
+</div>
+
+<script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+
+<script>
+    const input = document.getElementById("pdfInput");
+    const btn = document.getElementById("splitBtn");
+    const status = document.getElementById("status");
+
+    let file;
+
+    input.addEventListener("change", e => {
+        file = e.target.files[0];
+        btn.disabled = !file;
+    });
+
+    btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        status.textContent = "Reordering and rebuilding PDF…";
+
+        const bytes = await file.arrayBuffer();
+        const srcPdf = await PDFLib.PDFDocument.load(bytes);
+        const outPdf = await PDFLib.PDFDocument.create();
+
+        const pages = srcPdf.getPages();
+        const firstPage = pages[0];
+
+        let firstLeftEmbed = null;
+        let firstLeftSize = null;
+
+        for (let i = 0; i < pages.length; i++) {
+            const page = pages[i];
+            const { width, height } = page.getSize();
+            const half = width / 2;
+
+            // FIRST PAGE — skip left, add right only
+            if (i === 0) {
+                // store left for later
+                firstLeftEmbed = await outPdf.embedPage(page, {
+                    left: 0,
+                    bottom: 0,
+                    right: half,
+                    top: height
+                });
+                firstLeftSize = { half, height };
+
+                // add right side as page 1
+                const rightPage = outPdf.addPage([half, height]);
+                const rightEmbed = await outPdf.embedPage(page, {
+                    left: half,
+                    bottom: 0,
+                    right: width,
+                    top: height
+                });
+                rightPage.drawPage(rightEmbed, {
+                    x: 0,
+                    y: 0,
+                    width: half,
+                    height: height
+                });
+
+                continue;
+            }
+
+            // ALL OTHER PAGES — left then right
+            const leftPage = outPdf.addPage([half, height]);
+            const leftEmbed = await outPdf.embedPage(page, {
+                left: 0,
+                bottom: 0,
+                right: half,
+                top: height
+            });
+            leftPage.drawPage(leftEmbed, {
+                x: 0,
+                y: 0,
+                width: half,
+                height: height
+            });
+
+            const rightPage = outPdf.addPage([half, height]);
+            const rightEmbed = await outPdf.embedPage(page, {
+                left: half,
+                bottom: 0,
+                right: width,
+                top: height
+            });
+            rightPage.drawPage(rightEmbed, {
+                x: 0,
+                y: 0,
+                width: half,
+                height: height
+            });
+        }
+
+        // APPEND first page LEFT at the end
+        if (firstLeftEmbed) {
+            const lastPage = outPdf.addPage([firstLeftSize.half, firstLeftSize.height]);
+            lastPage.drawPage(firstLeftEmbed, {
+                x: 0,
+                y: 0,
+                width: firstLeftSize.half,
+                height: firstLeftSize.height
+            });
+        }
+
+        const outBytes = await outPdf.save();
+        download(outBytes);
+
+        status.textContent = "Done! PDF downloaded.";
+        btn.disabled = false;
+    });
+
+    function download(bytes) {
+        const blob = new Blob([bytes], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+
+        const baseName = file.name.replace(/\.pdf$/i, "");
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${baseName}_Split.pdf`;
+        a.click();
+
+        URL.revokeObjectURL(url);
+    }
+</script>
+</body>
+</html>

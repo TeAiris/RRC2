@@ -1,0 +1,16 @@
+object,parent,rig_hint,instrument,watertight,faces
+DjembeLead_Head,DjembeLead,membrane,DjembeLead,1,288
+Djembe_Head,Djembe,membrane,Djembe,1,288
+Doundoun_Bell,Doundoun,swing,Doundoun_bell,1,74
+Doundoun_BellBeater,Doundoun,mallet,,1,10
+Doundoun_Head_A,Doundoun,membrane,Doundoun,1,240
+Doundoun_Stick,Doundoun,mallet,,1,12
+Kenkeni_Bell,Kenkeni,swing,Kenkeni_bell,1,74
+Kenkeni_BellBeater,Kenkeni,mallet,,1,10
+Kenkeni_Head_A,Kenkeni,membrane,Kenkeni,1,240
+Kenkeni_Stick,Kenkeni,mallet,,1,12
+Sangban_Bell,Sangban,swing,Sangban_bell,1,74
+Sangban_BellBeater,Sangban,mallet,,1,10
+Sangban_Head_A,Sangban,membrane,Sangban,1,240
+Sangban_Stick,Sangban,mallet,,1,12
+Shekere_Gourd,Shekere,shake,Shekere,1,3376

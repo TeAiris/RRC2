@@ -1,0 +1,2778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rhythms‿Re‿Connected - Cultural Journey</title>
+    <link href="https://cdn.jsdelivr.net/npm/cesium@1.137/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=2026-02-11-mobile-v2">
+    <script>
+      (function() {
+        try {
+          const params = new URLSearchParams(window.location.search || '');
+          const mobile = (() => {
+            if (!params.has('mobile')) return false;
+            const value = String(params.get('mobile') || '').trim().toLowerCase();
+            return !(value === '0' || value === 'false' || value === 'off' || value === 'no');
+          })();
+          const isPadRemoteBoot = params.get('padRemote') === '1' || mobile;
+          if (!isPadRemoteBoot && params.get('room') !== '0') {
+            document.documentElement.classList.add('rrc-room-boot');
+          }
+          // Cover the page until the room has drawn, so the old windows never flash. room.js lifts it;
+          // the timer is only a safety net if the room never reports in.
+          if (params.get('room') !== '0') {
+            document.documentElement.classList.add('rrc-booting');
+            setTimeout(() => document.documentElement.classList.remove('rrc-booting'), 15000);
+          }
+          if (isPadRemoteBoot) {
+            document.documentElement.classList.add('rrc-padremote-boot');
+            const viewport = document.querySelector('meta[name="viewport"]');
+            if (viewport) {
+              // Pad/mobile mode favors rapid touch input over browser zoom gestures.
+              viewport.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover');
+            }
+          }
+        } catch {}
+      })();
+    </script>
+    <link rel="stylesheet" href="room/room.css?v=timing-v41">
+    <style>
+      html.rrc-booting body { visibility: hidden; }
+      html.rrc-booting body::after {
+        content: 'Loading the room'; visibility: visible; position: fixed; inset: 0; z-index: 2147483647;
+        display: flex; align-items: center; justify-content: center; background: #080504;
+        color: rgba(255, 246, 220, 0.7); font: 13px 'Orbitron', sans-serif; letter-spacing: 0.2em; text-transform: uppercase;
+      }
+      html.rrc-room-boot [data-floating-window="true"]:not(#cesiumContainer),
+      html.rrc-room:not(.rrc-room-rhythm-list-open) #rhythm-panel { display: none !important; }
+    </style>
+    <script type="importmap">{ "imports": { "three": "./room/vendor/three.module.min.js", "three/addons/": "./room/vendor/jsm/" } }</script>
+</head>
+<body>
+<div id="cesiumContainer" data-floating-window="true" data-window-min-w="360" data-window-min-h="240" data-floating-locked="1">
+    <div id="loading" class="loading">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Initializing</div>
+    </div>
+</div>
+
+<div id="top-panel-toggles">
+    <button id="top-buttons-compact-toggle" title="Compact Top Buttons">📱</button>
+    <button id="hide-ui-toggle">Hide UI</button>
+    <button id="mute-all-audio-btn" title="Mute all audio" aria-label="Mute all audio">Mute</button>
+    <button id="notation-toggle">🎵 Notation</button>
+    <button id="rhythm-toggle">Rhythms</button>
+    <button id="info-toggle">Title</button>
+    <button id="history-toggle">Context</button>
+    <button id="media-toggle">Media</button>
+    <button id="nav-toggle" style="display:none;">Nav</button>
+    <button id="map-toggle">Map</button>
+    <button id="serve-local-toggle">Serve</button>
+    <button id="window-select-toggle">Select</button>
+    <button id="views-toggle">Views</button>
+    <button id="auth-toggle">User</button>
+    <button id="session-toggle">Session</button>
+    <button id="stage-toggle">Stage</button>
+    <button id="circular-toggle">Circular</button>
+    <button id="trigger-pad-toggle">Pads</button>
+    <button id="qr-toggle">QR</button>
+    <button id="tidy-toggle">Tidy</button>
+    <button id="debug-toggle">Settings</button>
+</div>
+
+<div id="debug-controls" class="hidden" data-floating-window="true" data-window-min-w="420" data-window-min-h="220">
+    <div class="debug-header">
+        <h4>Debug Settings</h4>
+        <div class="debug-actions">
+            <button id="saveStateBtn" class="debug-action-btn" title="Save current window layout">💾 Save State</button>
+            <button id="exportSettingsBtn" class="debug-action-btn" title="Export">📋 Export</button>
+            <button id="importSettingsBtn" class="debug-action-btn" title="Import">📥 Import</button>
+            <button id="resetSettingsBtn" class="debug-action-btn" title="Reset">↺ Reset</button>
+        </div>
+    </div>
+    <div id="debug-scroll-view">
+    <div class="control-row debug-search-row"><label>Find Setting:</label><input type="text" id="debugSearchInput" class="ctrl-input" placeholder="Search by setting or section..."></div>
+    <div class="control-row" style="margin-bottom:8px;"><label>🔍 Debug Text Scale:</label><input type="range" id="debugScale" min="0.6" max="3.5" step="0.05"><input type="number" class="ctrl-input" id="debugScale-input" step="0.05"><span class="ctrl-val" id="debugScale-val"></span></div>
+    <div class="debug-section">
+        <div class="debug-section-title">🌍 Globe & Journey</div>
+        <div class="control-row"><label>Zoom Out (km):</label><input type="range" id="zoomOutAltitude" min="5000" max="40000" step="500"><input type="number" class="ctrl-input" id="zoomOutAltitude-input" step="500"><span class="ctrl-val" id="zoomOutAltitude-val"></span></div>
+        <div class="control-row"><label>Zoom In (km):</label><input type="range" id="zoomInAltitude" min="100" max="3000" step="50"><input type="number" class="ctrl-input" id="zoomInAltitude-input" step="50"><span class="ctrl-val" id="zoomInAltitude-val"></span></div>
+        <div class="control-row"><label>Zoom Out (sec):</label><input type="range" id="zoomOutDuration" min="0.5" max="6" step="0.25"><input type="number" class="ctrl-input" id="zoomOutDuration-input" step="0.25"><span class="ctrl-val" id="zoomOutDuration-val"></span></div>
+        <div class="control-row"><label>Pause (sec):</label><input type="range" id="zoomPauseDuration" min="0" max="3" step="0.1"><input type="number" class="ctrl-input" id="zoomPauseDuration-input" step="0.1"><span class="ctrl-val" id="zoomPauseDuration-val"></span></div>
+        <div class="control-row"><label>Zoom In (sec):</label><input type="range" id="zoomInDuration" min="0.5" max="6" step="0.25"><input type="number" class="ctrl-input" id="zoomInDuration-input" step="0.25"><span class="ctrl-val" id="zoomInDuration-val"></span></div>
+        <div class="control-row"><label>Stop Transport On Rhythm Click:</label><input type="checkbox" id="stopTransportOnRhythmSelectToggle" checked></div>
+        <div class="control-row"><label>Show Rhythm Window After Travel:</label><input type="checkbox" id="restoreRhythmPanelAfterJourneyToggle" checked></div>
+    </div>
+
+    <div class="debug-section">
+        <div class="debug-section-title">🔮 Domes</div>
+        <div class="control-row"><label>Size (km):</label><input type="range" id="domeSize" min="5" max="80" step="1"><input type="number" class="ctrl-input" id="domeSize-input" step="1"><span class="ctrl-val" id="domeSize-val"></span></div>
+        <div class="control-row"><label>Opacity:</label><input type="range" id="sphereOpacity" min="0.05" max="1" step="0.05"><input type="number" class="ctrl-input" id="sphereOpacity-input" step="0.05"><span class="ctrl-val" id="sphereOpacity-val"></span></div>
+        <div class="control-row"><label>Height Offset:</label><input type="range" id="sphereHeightOffset" min="0" max="3" step="0.1"><input type="number" class="ctrl-input" id="sphereHeightOffset-input" step="0.1"><span class="ctrl-val" id="sphereHeightOffset-val"></span></div>
+        <div class="control-row"><label>Wireframe:</label><input type="checkbox" id="wireframeToggle"></div>
+        <div class="control-row"><label>Outline:</label><input type="checkbox" id="wireframeOutlineToggle"></div>
+    </div>
+
+    <div class="debug-section">
+        <div class="debug-section-title">✈️ Path & Plane</div>
+        <div class="control-row"><label>Width (px):</label><input type="range" id="pathWidth" min="1" max="30" step="1"><input type="number" class="ctrl-input" id="pathWidth-input" step="1"><span class="ctrl-val" id="pathWidth-val"></span></div>
+        <div class="control-row"><label>Speed:</label><input type="range" id="pathSpeed" min="0.001" max="0.03" step="0.001"><input type="number" class="ctrl-input" id="pathSpeed-input" step="0.001"><span class="ctrl-val" id="pathSpeed-val"></span></div>
+        <div class="control-row"><label>Length:</label><input type="range" id="pathLength" min="0.02" max="0.5" step="0.01"><input type="number" class="ctrl-input" id="pathLength-input" step="0.01"><span class="ctrl-val" id="pathLength-val"></span></div>
+        <div class="control-row"><label>Arc Height:</label><input type="range" id="arcHeightFactor" min="0.01" max="0.5" step="0.01"><input type="number" class="ctrl-input" id="arcHeightFactor-input" step="0.01"><span class="ctrl-val" id="arcHeightFactor-val"></span></div>
+        <div class="control-row"><label>Plane Scale:</label><input type="range" id="planeScale" min="10" max="50000" step="10"><input type="number" class="ctrl-input" id="planeScale-input" step="10"><span class="ctrl-val" id="planeScale-val"></span></div>
+        <div class="control-row"><label>Heading (°):</label><input type="range" id="planeHeading" min="-180" max="180" step="5"><input type="number" class="ctrl-input" id="planeHeading-input" step="1"><span class="ctrl-val" id="planeHeading-val"></span></div>
+        <div class="control-row"><label>Pitch (°):</label><input type="range" id="planePitch" min="-90" max="90" step="5"><input type="number" class="ctrl-input" id="planePitch-input" step="1"><span class="ctrl-val" id="planePitch-val"></span></div>
+        <div class="control-row"><label>Roll (°):</label><input type="range" id="planeRoll" min="-180" max="180" step="5"><input type="number" class="ctrl-input" id="planeRoll-input" step="1"><span class="ctrl-val" id="planeRoll-val"></span></div>
+        <div class="control-row"><label>Show Plane:</label><input type="checkbox" id="showPlaneToggle" checked></div>
+    </div>
+
+    <div class="debug-section">
+        <div class="debug-section-title">🔊 Audio</div>
+        <div class="control-row"><label>Auto-play 1st video audio:</label><input type="checkbox" id="useFirstVideoAsAudioToggle" checked></div>
+    </div>
+
+    <div class="debug-section">
+        <div class="debug-section-title">📐 Layout & Sizing</div>
+        <div class="control-row"><label>Panel Width (px):</label><input type="range" id="rhythmPanelWidth" min="140" max="400" step="5"><input type="number" class="ctrl-input" id="rhythmPanelWidth-input" step="5"><span class="ctrl-val" id="rhythmPanelWidth-val"></span></div>
+        <div class="control-row"><label>Panel Height (vh):</label><input type="range" id="rhythmPanelHeight" min="30" max="95" step="1"><input type="number" class="ctrl-input" id="rhythmPanelHeight-input" step="1"><span class="ctrl-val" id="rhythmPanelHeight-val"></span></div>
+        <div class="control-row"><label>Window Scale Min:</label><input type="range" id="windowScaleMin" min="0.45" max="1.4" step="0.01"><input type="number" class="ctrl-input" id="windowScaleMin-input" step="0.01"><span class="ctrl-val" id="windowScaleMin-val"></span></div>
+        <div class="control-row"><label>Window Snap:</label><input type="checkbox" id="floatingSnapEnabledToggle" checked></div>
+        <div class="control-row"><label>Pause Frost Blur If Playback Lags:</label><input type="checkbox" id="autoPerfLiteToggle" checked></div>
+        <div class="control-row"><label>Top Button Emoji:</label><input type="checkbox" id="topButtonsEmojiToggle" checked></div>
+        <div class="control-row"><label>Top Emoji Size (%):</label><input type="range" id="topButtonEmojiScale" min="80" max="260" step="5"><input type="number" class="ctrl-input" id="topButtonEmojiScale-input" step="5"><span class="ctrl-val" id="topButtonEmojiScale-val"></span></div>
+        <div class="control-row"><label>📱 Size (%):</label><input type="range" id="topTogglePhoneEmojiScale" min="80" max="320" step="5"><input type="number" class="ctrl-input" id="topTogglePhoneEmojiScale-input" step="5"><span class="ctrl-val" id="topTogglePhoneEmojiScale-val"></span></div>
+        <div class="control-row"><label>💻 Size (%):</label><input type="range" id="topToggleLaptopEmojiScale" min="80" max="320" step="5"><input type="number" class="ctrl-input" id="topToggleLaptopEmojiScale-input" step="5"><span class="ctrl-val" id="topToggleLaptopEmojiScale-val"></span></div>
+        <div class="control-row"><label>Show Nav Top Button:</label><input type="checkbox" id="showNavTopButtonToggle"></div>
+        <div class="control-row"><label>Contain Card Images:</label><input type="checkbox" id="rhythmCardContainImagesToggle"></div>
+        <div class="control-row"><label>Load Database On Startup:</label><input type="checkbox" id="loadDatabaseOnStartupToggle" checked></div>
+        <div class="control-row"><label>Tooltip Type (ms):</label><input type="range" id="tooltipTypeSpeed" min="4" max="80" step="1"><input type="number" class="ctrl-input" id="tooltipTypeSpeed-input" step="1"><span class="ctrl-val" id="tooltipTypeSpeed-val"></span></div>
+        <div class="control-row"><label>Tooltip Hover Delay (ms):</label><input type="range" id="tooltipHoverDelayMs" min="0" max="3000" step="25"><input type="number" class="ctrl-input" id="tooltipHoverDelayMs-input" step="25"><span class="ctrl-val" id="tooltipHoverDelayMs-val"></span></div>
+        <div class="control-row"><label>Tooltip Size (%):</label><input type="range" id="tooltipWindowScale" min="60" max="260" step="5"><input type="number" class="ctrl-input" id="tooltipWindowScale-input" step="5"><span class="ctrl-val" id="tooltipWindowScale-val"></span></div>
+        <div class="control-row"><label>Tooltip Text (%):</label><input type="range" id="tooltipTextScale" min="60" max="260" step="5"><input type="number" class="ctrl-input" id="tooltipTextScale-input" step="5"><span class="ctrl-val" id="tooltipTextScale-val"></span></div>
+        <div class="control-row"><label>Tooltip Hide On Unhover:</label><input type="checkbox" id="tooltipHideOnUnhoverToggle"></div>
+        <div class="control-row"><label>Snap Distance (px):</label><input type="range" id="floatingSnapDistance" min="4" max="64" step="1"><input type="number" class="ctrl-input" id="floatingSnapDistance-input" step="1"><span class="ctrl-val" id="floatingSnapDistance-val"></span></div>
+        <div class="control-row"><label>Snap To Windows:</label><input type="checkbox" id="floatingSnapToWindowsToggle" checked></div>
+        <div class="control-row"><label>Snap To Bounds:</label><input type="checkbox" id="floatingSnapToViewportToggle" checked></div>
+        <div class="control-row"><label>Magnetic Dock:</label><input type="checkbox" id="floatingMagneticDockToggle" checked></div>
+        <div class="control-row"><label>Panel Opacity:</label><input type="range" id="panelOpacity" min="0.3" max="1" step="0.05"><input type="number" class="ctrl-input" id="panelOpacity-input" step="0.05"><span class="ctrl-val" id="panelOpacity-val"></span></div>
+        <div class="control-row"><label>Top Buttons Alpha:</label><input type="range" id="topButtonsAlpha" min="0.1" max="1" step="0.05"><input type="number" class="ctrl-input" id="topButtonsAlpha-input" step="0.05"><span class="ctrl-val" id="topButtonsAlpha-val"></span></div>
+        <div class="control-row"><label>Windows Alpha:</label><input type="range" id="windowsAlpha" min="0.3" max="1" step="0.05"><input type="number" class="ctrl-input" id="windowsAlpha-input" step="0.05"><span class="ctrl-val" id="windowsAlpha-val"></span></div>
+        <div class="control-row"><label>Map Alpha:</label><input type="range" id="fullscreenMapAlpha" min="0.1" max="1" step="0.05"><input type="number" class="ctrl-input" id="fullscreenMapAlpha-input" step="0.05"><span class="ctrl-val" id="fullscreenMapAlpha-val"></span></div>
+        <div class="control-row"><label>Frost Blur (px):</label><input type="range" id="frostIntensity" min="0" max="50" step="1"><input type="number" class="ctrl-input" id="frostIntensity-input" step="1"><span class="ctrl-val" id="frostIntensity-val"></span></div>
+        <div class="control-row"><label>Top Buttons Blur (px):</label><input type="range" id="topButtonsBlur" min="0" max="50" step="1"><input type="number" class="ctrl-input" id="topButtonsBlur-input" step="1"><span class="ctrl-val" id="topButtonsBlur-val"></span></div>
+        <div class="control-row"><label>Carousel (sec):</label><input type="range" id="carouselSpeed" min="5" max="120" step="1"><input type="number" class="ctrl-input" id="carouselSpeed-input" step="1"><span class="ctrl-val" id="carouselSpeed-val"></span></div>
+        <div class="control-row"><label>Carousel Row Threshold (px):</label><input type="range" id="carouselRowAddThreshold" min="0" max="240" step="2"><input type="number" class="ctrl-input" id="carouselRowAddThreshold-input" step="2"><span class="ctrl-val" id="carouselRowAddThreshold-val"></span></div>
+        <div class="control-row"><label>Pad Subdiv Gap (px):</label><input type="range" id="padPreviewStepGap" min="0" max="12" step="1"><input type="number" class="ctrl-input" id="padPreviewStepGap-input" step="1"><span class="ctrl-val" id="padPreviewStepGap-val"></span></div>
+        <div class="control-row"><label>Pad Beat Divider Gap (px):</label><input type="range" id="padBeatStartGap" min="0" max="12" step="1"><input type="number" class="ctrl-input" id="padBeatStartGap-input" step="1"><span class="ctrl-val" id="padBeatStartGap-val"></span></div>
+        <div class="control-row"><label>Pad Play Visual (%):</label><input type="range" id="padPlayVisualScale" min="70" max="220" step="5"><input type="number" class="ctrl-input" id="padPlayVisualScale-input" step="5"><span class="ctrl-val" id="padPlayVisualScale-val"></span></div>
+        <div class="control-row"><label>Pad Beat Arrow Arc:</label><input type="checkbox" id="padBeatArrowArcToggle"></div>
+        <div class="control-row"><label>Notation/Pad Arc Height (px):</label><input type="range" id="notationBeatArcHeight" min="1" max="40" step="1"><input type="number" class="ctrl-input" id="notationBeatArcHeight-input" step="1"><span class="ctrl-val" id="notationBeatArcHeight-val"></span></div>
+        <div class="control-row"><label>Notation Prime Lead (ms):</label><input type="range" id="notationPrimeLeadMs" min="0" max="300" step="5"><input type="number" class="ctrl-input" id="notationPrimeLeadMs-input" step="5"><span class="ctrl-val" id="notationPrimeLeadMs-val"></span></div>
+        <div class="control-row"><label>Pad Beat Indicator Height (px):</label><input type="range" id="padBeatIndicatorHeight" min="1" max="10" step="1"><input type="number" class="ctrl-input" id="padBeatIndicatorHeight-input" step="1"><span class="ctrl-val" id="padBeatIndicatorHeight-val"></span></div>
+        <div class="control-row"><label>Pad Beat Indicator Y Offset (px):</label><input type="range" id="padBeatIndicatorOffset" min="-12" max="18" step="1"><input type="number" class="ctrl-input" id="padBeatIndicatorOffset-input" step="1"><span class="ctrl-val" id="padBeatIndicatorOffset-val"></span></div>
+        <div class="control-row"><label>Stage Min Velocity (%):</label><input type="range" id="stageMinVelocity" min="5" max="95" step="1"><input type="number" class="ctrl-input" id="stageMinVelocity-input" step="1"><span class="ctrl-val" id="stageMinVelocity-val"></span></div>
+        <div class="control-row"><label>Stage Max Velocity (%):</label><input type="range" id="stageMaxVelocity" min="10" max="100" step="1"><input type="number" class="ctrl-input" id="stageMaxVelocity-input" step="1"><span class="ctrl-val" id="stageMaxVelocity-val"></span></div>
+        <div class="control-row"><label>Stage Live Update (px):</label><input type="range" id="stageLiveUpdateThresholdPx" min="0" max="40" step="1"><input type="number" class="ctrl-input" id="stageLiveUpdateThresholdPx-input" step="1"><span class="ctrl-val" id="stageLiveUpdateThresholdPx-val"></span></div>
+        <div class="control-row"><label>Stage Min Range (%):</label><input type="range" id="stageMinVelocityRange" min="5" max="80" step="1"><input type="number" class="ctrl-input" id="stageMinVelocityRange-input" step="1"><span class="ctrl-val" id="stageMinVelocityRange-val"></span></div>
+        <div class="control-row"><label>Stage Bound X Offset (px):</label><input type="range" id="stageBoundsOffsetXPx" min="-80" max="80" step="1"><input type="number" class="ctrl-input" id="stageBoundsOffsetXPx-input" step="1"><span class="ctrl-val" id="stageBoundsOffsetXPx-val"></span></div>
+        <div class="control-row"><label>Stage Bound Y Offset (px):</label><input type="range" id="stageBoundsOffsetYPx" min="-80" max="80" step="1"><input type="number" class="ctrl-input" id="stageBoundsOffsetYPx-input" step="1"><span class="ctrl-val" id="stageBoundsOffsetYPx-val"></span></div>
+    </div>
+
+    <div class="debug-section">
+        <div class="debug-section-title">💬 Hint Text</div>
+        <div class="panel-hint">Edit any hint text shown in the app and notation. Changes save instantly and are included in settings export/import.</div>
+        <div id="hintTextSettings"></div>
+        <div class="control-row">
+            <label>Hint Reset:</label>
+            <button id="hintTextResetBtn" class="debug-action-btn" type="button">Reset Hint Text</button>
+        </div>
+    </div>
+
+    <div class="debug-section">
+        <div class="debug-section-title">🤝 Session Realtime</div>
+        <div class="control-row"><label>Eco Sync:</label><input type="checkbox" id="sessionEcoSyncToggle" checked></div>
+        <div class="control-row">
+            <label>Cadence:</label>
+            <select id="sessionEcoTickGranularity">
+                <option value="beat">Beat</option>
+                <option value="bar">Bar</option>
+                <option value="step">Every Step</option>
+            </select>
+        </div>
+        <div class="control-row"><label>Min Tick Gap (ms):</label><input type="range" id="sessionEcoMinTickIntervalMs" min="0" max="2000" step="25"><input type="number" class="ctrl-input" id="sessionEcoMinTickIntervalMs-input" step="25"><span class="ctrl-val" id="sessionEcoMinTickIntervalMs-val"></span></div>
+        <div class="control-row"><label>Heartbeat (ms):</label><input type="range" id="sessionEcoMaxSilenceMs" min="250" max="5000" step="50"><input type="number" class="ctrl-input" id="sessionEcoMaxSilenceMs-input" step="50"><span class="ctrl-val" id="sessionEcoMaxSilenceMs-val"></span></div>
+        <div class="control-row">
+            <label>Default Session Mode:</label>
+            <select id="sessionDefaultSyncMode">
+                <option value="remote">🛰️ Remote (strict sync)</option>
+                <option value="local">🏠 Local (low traffic)</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="debug-section">
+        <div class="debug-section-title">🔤 Typography — Normal</div>
+        <div class="control-row"><label>UI Scale:</label><input type="range" id="textScale" min="0.5" max="2" step="0.05"><input type="number" class="ctrl-input" id="textScale-input" step="0.05"><span class="ctrl-val" id="textScale-val"></span></div>
+        <div class="control-row"><label>Banner Title (px):</label><input type="range" id="bannerTitleSize" min="8" max="28" step="1"><input type="number" class="ctrl-input" id="bannerTitleSize-input" step="1"><span class="ctrl-val" id="bannerTitleSize-val"></span></div>
+        <div class="control-row"><label>Banner Desc (px):</label><input type="range" id="bannerDescSize" min="6" max="20" step="1"><input type="number" class="ctrl-input" id="bannerDescSize-input" step="1"><span class="ctrl-val" id="bannerDescSize-val"></span></div>
+        <div class="control-row"><label>Context Title (px):</label><input type="range" id="contextTitleSize" min="8" max="24" step="1"><input type="number" class="ctrl-input" id="contextTitleSize-input" step="1"><span class="ctrl-val" id="contextTitleSize-val"></span></div>
+        <div class="control-row"><label>Context Body (px):</label><input type="range" id="contextBodySize" min="6" max="20" step="1"><input type="number" class="ctrl-input" id="contextBodySize-input" step="1"><span class="ctrl-val" id="contextBodySize-val"></span></div>
+        <div class="control-row"><label>Card Name (px):</label><input type="range" id="cardNameSize" min="6" max="40" step="1"><input type="number" class="ctrl-input" id="cardNameSize-input" step="1"><span class="ctrl-val" id="cardNameSize-val"></span></div>
+        <div class="control-row"><label>Card Blur (px):</label><input type="range" id="cardOverlayBlur" min="0" max="30" step="1"><input type="number" class="ctrl-input" id="cardOverlayBlur-input" step="1"><span class="ctrl-val" id="cardOverlayBlur-val"></span></div>
+        <div class="control-row"><label>Create Text (px):</label><input type="range" id="createTextSize" min="8" max="22" step="1"><input type="number" class="ctrl-input" id="createTextSize-input" step="1"><span class="ctrl-val" id="createTextSize-val"></span></div>
+        <div class="control-row"><label>Carousel Name (px):</label><input type="range" id="carouselCardNameSize" min="6" max="26" step="1"><input type="number" class="ctrl-input" id="carouselCardNameSize-input" step="1"><span class="ctrl-val" id="carouselCardNameSize-val"></span></div>
+        <div class="control-row"><label>Region Text (px):</label><input type="range" id="cardLocationSize" min="5" max="24" step="1"><input type="number" class="ctrl-input" id="cardLocationSize-input" step="1"><span class="ctrl-val" id="cardLocationSize-val"></span></div>
+        <div class="control-row"><label>Community Text (px):</label><input type="range" id="cardCommunitySize" min="5" max="24" step="1"><input type="number" class="ctrl-input" id="cardCommunitySize-input" step="1"><span class="ctrl-val" id="cardCommunitySize-val"></span></div>
+        <div class="control-row"><label>Card Creator (px):</label><input type="range" id="cardCreatorSize" min="5" max="24" step="1"><input type="number" class="ctrl-input" id="cardCreatorSize-input" step="1"><span class="ctrl-val" id="cardCreatorSize-val"></span></div>
+        <div class="control-row"><label>Stage Instrument Scale:</label><input type="range" id="stageInstrumentScale" min="0.6" max="12" step="0.05"><input type="number" class="ctrl-input" id="stageInstrumentScale-input" step="0.05"><span class="ctrl-val" id="stageInstrumentScale-val"></span></div>
+        <div class="control-row"><label>Stage Label Scale:</label><input type="range" id="stageLabelScale" min="0.6" max="2.2" step="0.05"><input type="number" class="ctrl-input" id="stageLabelScale-input" step="0.05"><span class="ctrl-val" id="stageLabelScale-val"></span></div>
+        <div class="control-row"><label>Stage UI Text Scale:</label><input type="range" id="stageUiTextScale" min="0.7" max="3.2" step="0.05"><input type="number" class="ctrl-input" id="stageUiTextScale-input" step="0.05"><span class="ctrl-val" id="stageUiTextScale-val"></span></div>
+        <div class="control-row"><label>Dome Label (px):</label><input type="range" id="domeLabelSize" min="8" max="24" step="1"><input type="number" class="ctrl-input" id="domeLabelSize-input" step="1"><span class="ctrl-val" id="domeLabelSize-val"></span></div>
+        <div class="control-row"><label>Nav Labels (px):</label><input type="range" id="navLabelSize" min="6" max="16" step="1"><input type="number" class="ctrl-input" id="navLabelSize-input" step="1"><span class="ctrl-val" id="navLabelSize-val"></span></div>
+    </div>
+
+    <div class="debug-section">
+        <div class="debug-section-title">🔤 Typography — Focus Mode</div>
+        <div class="control-row"><label>Focus Scale:</label><input type="range" id="focusTextScale" min="0.3" max="2" step="0.05"><input type="number" class="ctrl-input" id="focusTextScale-input" step="0.05"><span class="ctrl-val" id="focusTextScale-val"></span></div>
+        <div class="control-row"><label>F. Banner Title (px):</label><input type="range" id="focusBannerTitleSize" min="8" max="36" step="1"><input type="number" class="ctrl-input" id="focusBannerTitleSize-input" step="1"><span class="ctrl-val" id="focusBannerTitleSize-val"></span></div>
+        <div class="control-row"><label>F. Banner Desc (px):</label><input type="range" id="focusBannerDescSize" min="6" max="24" step="1"><input type="number" class="ctrl-input" id="focusBannerDescSize-input" step="1"><span class="ctrl-val" id="focusBannerDescSize-val"></span></div>
+        <div class="control-row"><label>F. Context Title (px):</label><input type="range" id="focusContextTitleSize" min="8" max="30" step="1"><input type="number" class="ctrl-input" id="focusContextTitleSize-input" step="1"><span class="ctrl-val" id="focusContextTitleSize-val"></span></div>
+        <div class="control-row"><label>F. Context Body (px):</label><input type="range" id="focusContextBodySize" min="6" max="24" step="1"><input type="number" class="ctrl-input" id="focusContextBodySize-input" step="1"><span class="ctrl-val" id="focusContextBodySize-val"></span></div>
+        <div class="control-row">
+            <label>Display Font:</label>
+            <select id="fontSelect">
+                <option value="'Orbitron', sans-serif">Orbitron (Default)</option>
+                <option value="'Rajdhani', sans-serif">Rajdhani</option>
+                <option value="'Exo 2', sans-serif">Exo 2</option>
+                <option value="'Audiowide', cursive">Audiowide</option>
+                <option value="'Electrolize', sans-serif">Electrolize</option>
+                <option value="'Oxanium', cursive">Oxanium</option>
+                <option value="'Share Tech Mono', monospace">Share Tech Mono</option>
+                <option value="'Michroma', sans-serif">Michroma</option>
+                <option value="'Quantico', sans-serif">Quantico</option>
+                <option value="'Russo One', sans-serif">Russo One</option>
+            </select>
+        </div>
+        <div class="control-row">
+            <label>Secondary Font:</label>
+            <select id="secondaryFontSelect">
+                <option value="'Rajdhani', sans-serif">Rajdhani (Default)</option>
+                <option value="'Orbitron', sans-serif">Orbitron</option>
+                <option value="'Exo 2', sans-serif">Exo 2</option>
+                <option value="'Oxanium', cursive">Oxanium</option>
+                <option value="'Electrolize', sans-serif">Electrolize</option>
+                <option value="'Quantico', sans-serif">Quantico</option>
+            </select>
+        </div>
+        <div class="control-row">
+            <label>UI Font:</label>
+            <select id="uiFontSelect">
+                <option value="'Segoe UI', sans-serif">Segoe UI (Default)</option>
+                <option value="'Rajdhani', sans-serif">Rajdhani</option>
+                <option value="'Exo 2', sans-serif">Exo 2</option>
+                <option value="'Oxanium', cursive">Oxanium</option>
+                <option value="'Electrolize', sans-serif">Electrolize</option>
+            </select>
+        </div>
+        <div class="control-row">
+            <label>Mono Font:</label>
+            <select id="monoFontSelect">
+                <option value="'Share Tech Mono', monospace">Share Tech Mono (Default)</option>
+                <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
+                <option value="'Fira Code', monospace">Fira Code</option>
+                <option value="'Courier New', monospace">Courier New</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="debug-section">
+        <div class="debug-section-title">🔧 Appearance</div>
+        <div class="control-row">
+            <label>Imagery:</label>
+            <select id="imagerySelect">
+                <option value="default">Bing Aerial</option>
+                <option value="bingAerialLabels">Bing Aerial w/ Labels</option>
+                <option value="bingRoads">Bing Roads</option>
+                <option value="googleSatellite">Google Satellite</option>
+                <option value="googleHybrid">Google Hybrid</option>
+                <option value="googleRoads">Google Roads</option>
+                <option value="googleTerrain">Google Terrain</option>
+                <option value="arcgis">ArcGIS World Imagery</option>
+                <option value="sentinel">Sentinel-2</option>
+                <option value="osm">OpenStreetMap</option>
+                <option value="naturalEarth">Natural Earth II</option>
+                <option value="bluemarble">Blue Marble</option>
+                <option value="blackmarble">Black Marble (Night)</option>
+                <option value="dark">Dark (No Labels)</option>
+            </select>
+        </div>
+        <div class="control-row">
+            <label>Map Window:</label>
+            <input type="checkbox" id="mapWindowedToggle">
+        </div>
+        <div class="control-row">
+            <label>Scene Mode:</label>
+            <select id="mapSceneModeSelect">
+                <option value="3d">3D Globe</option>
+                <option value="2d">2D Flat</option>
+                <option value="columbus">Columbus View</option>
+            </select>
+        </div>
+        <div class="control-row">
+            <label>Color Mode:</label>
+            <select id="colorModeSelect">
+                <option value="rainbow">🌈 Rainbow Spectrum</option>
+                <option value="database">🎨 Database Colors</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="debug-section">
+        <div class="debug-section-title">🎵 Notation Window</div>
+        <div class="control-row">
+            <label>Window Scale:</label>
+            <input type="range" id="notationScaleSlider" min="30" max="100" value="90" step="5">
+            <input type="number" class="ctrl-input" id="notationScaleInput" min="30" max="100" value="90" step="5">
+            <span>%</span>
+        </div>
+        <div class="control-row">
+            <label>Min Width:</label>
+            <input type="number" class="ctrl-input" id="notationMinWidth" min="300" max="1200" value="400" step="50">
+            <label>Min Height:</label>
+            <input type="number" class="ctrl-input" id="notationMinHeight" min="200" max="800" value="300" step="50">
+        </div>
+    </div>
+
+    <div class="debug-section">
+        <div class="debug-section-title">🔄 Data</div>
+        <div class="control-row"><label>Regen Images:</label><button id="regenImagesBtn" class="regen-btn">Regenerate</button></div>
+        <div class="control-row"><label>Rhythm Data:</label><button id="refreshDbBtn" class="regen-btn" style="background:rgba(100,200,255,0.3);border-color:rgba(100,200,255,0.5);color:#66ccff;">Refresh DB</button></div>
+    </div>
+    </div>
+</div>
+
+<div id="views-panel" class="hidden app-panel" data-floating-window="true" data-window-min-w="260" data-window-min-h="220">
+    <div class="app-panel-header">
+        <h4>Views</h4>
+    </div>
+    <div class="control-row">
+        <label>Preset Name:</label>
+        <input type="text" id="view-name-input" class="ctrl-input" placeholder="My Layout">
+        <button id="save-view-btn" class="debug-action-btn">Save</button>
+        <button id="import-views-btn" class="debug-action-btn">Import JSON</button>
+        <button id="export-views-btn" class="debug-action-btn">Export JSON</button>
+        <input type="file" id="import-views-file" accept="application/json,.json" style="display:none;">
+    </div>
+    <div class="views-list" id="views-list"></div>
+</div>
+
+<div id="auth-panel" class="hidden app-panel" data-floating-window="true" data-window-min-w="250" data-window-min-h="220">
+    <div class="app-panel-header">
+        <h4>User Access</h4>
+    </div>
+    <div id="auth-scroll-view" class="app-panel-scroll-view">
+        <div class="control-row" id="auth-user-row">
+            <label>User:</label>
+            <img id="auth-user-avatar" alt="Profile" style="display:none;" />
+            <span id="auth-user-display" class="panel-hint">Guest</span>
+            <button id="auth-upload-avatar-btn" class="debug-action-btn" style="display:none;">Upload Photo</button>
+            <button id="auth-signout-btn" class="debug-action-btn" style="display:none;">Sign Out</button>
+        </div>
+        <div class="control-row" id="auth-profile-row" style="display:none;">
+            <label>Username:</label>
+            <input type="text" id="auth-profile-username" class="ctrl-input" placeholder="set-your-name">
+            <button id="auth-profile-save-btn" class="debug-action-btn">Save</button>
+        </div>
+        <div class="control-row" id="auth-view-row" style="display:none;">
+            <label>View:</label>
+            <button id="auth-save-view-btn" class="debug-action-btn">Save Current</button>
+            <button id="auth-restore-view-btn" class="debug-action-btn">Restore Saved</button>
+        </div>
+        <input type="file" id="auth-upload-avatar-file" accept="image/*" style="display:none;" />
+        <div class="control-row" id="auth-mode-row">
+            <button id="auth-mode-signin" class="debug-action-btn">Sign In</button>
+            <button id="auth-mode-signup" class="debug-action-btn">Sign Up</button>
+        </div>
+        <div id="auth-signin-form" class="auth-form">
+            <div class="control-row"><label>Email:</label><input type="email" id="auth-signin-email" class="ctrl-input" autocomplete="email"></div>
+            <div class="control-row"><label>Password:</label><input type="password" id="auth-signin-password" class="ctrl-input" autocomplete="current-password"></div>
+            <button id="auth-signin-btn" class="debug-action-btn">Sign In</button>
+        </div>
+        <div id="auth-signup-form" class="auth-form hidden">
+            <div class="control-row"><label>Username:</label><input type="text" id="auth-signup-username" class="ctrl-input" placeholder="your-name"></div>
+            <div class="control-row"><label>Profile Image:</label><input type="file" id="auth-signup-avatar-file" class="ctrl-input" accept="image/*"></div>
+            <div class="control-row"><label>Email:</label><input type="email" id="auth-signup-email" class="ctrl-input"></div>
+            <div class="control-row"><label>Password:</label><input type="password" id="auth-signup-password" class="ctrl-input"></div>
+            <button id="auth-signup-btn" class="debug-action-btn">Create User</button>
+        </div>
+        <div class="control-row" id="auth-google-row" style="display:none;">
+            <button id="auth-google-btn" class="debug-action-btn">Continue with Google</button>
+        </div>
+        <div class="panel-status" id="auth-status">Not connected</div>
+    </div>
+</div>
+
+<div id="session-panel" class="hidden app-panel" data-floating-window="true" data-window-min-w="270" data-window-min-h="240">
+    <div class="app-panel-header">
+        <h4>Sessions</h4>
+    </div>
+    <div id="session-scroll-view" class="app-panel-scroll-view">
+        <div class="control-row session-id-row">
+            <label>Session ID:</label>
+            <input type="text" id="session-id-input" class="ctrl-input" placeholder="room-001">
+            <button id="session-generate-btn" class="debug-action-btn" title="Generate a new session id">New ID</button>
+        </div>
+        <div class="control-row session-actions-row">
+            <button id="session-create-btn" class="debug-action-btn">Start Session</button>
+            <button id="session-join-btn" class="debug-action-btn">Join Session</button>
+            <button id="session-leave-btn" class="debug-action-btn">Leave Session</button>
+            <button id="session-paste-btn" class="debug-action-btn" title="Paste session id from clipboard">Paste</button>
+            <button id="session-copy-btn" class="debug-action-btn" title="Copy current session id">Copy ID</button>
+            <button id="session-qr-btn" class="debug-action-btn" title="Open session QR panel">Session QR</button>
+        </div>
+        <div class="control-row session-mode-row">
+            <label>Mode:</label>
+            <button id="session-sync-mode-btn" class="debug-action-btn" title="Leader controls sync mode">🛰️ Remote</button>
+            <button id="session-free-mode-btn" class="debug-action-btn" title="Leader controls follower playback permissions">🔒 Locked</button>
+        </div>
+        <div class="control-row session-sync-rate-row">
+            <label>Sync Rate:</label>
+            <input type="range" id="session-sync-rate" min="35" max="600" step="5">
+            <input type="number" class="ctrl-input" id="session-sync-rate-input" min="35" max="600" step="5">
+            <span class="ctrl-val" id="session-sync-rate-val">95 ms</span>
+        </div>
+        <div class="session-section">
+            <div class="session-section-header">
+                <span>Active Sessions</span>
+                <button id="session-public-refresh-btn" class="debug-action-btn" title="Refresh active sessions">Refresh</button>
+            </div>
+            <div id="session-public-list" class="session-public-list"></div>
+        </div>
+        <div class="session-section">
+            <div class="session-section-header">
+                <span>Session Members</span>
+            </div>
+            <div id="session-members-list" class="session-members-list"></div>
+        </div>
+        <div class="panel-hint" id="session-hint">Tip: Paste or type a Session ID, then press Enter to join quickly.</div>
+        <div class="panel-status" id="session-status">No active session</div>
+    </div>
+</div>
+
+<div id="qr-panel" class="hidden app-panel" data-floating-window="true" data-window-min-w="320" data-window-min-h="300">
+    <div class="app-panel-header">
+        <h4>QR Share</h4>
+    </div>
+    <div class="qr-panel-body">
+        <div class="qr-panel-section">
+            <div class="qr-panel-section-header">
+                <span>App</span>
+                <button id="qr-panel-app-copy" class="debug-action-btn" type="button">Copy</button>
+            </div>
+            <img id="qr-panel-app-image" class="qr-panel-image" alt="App QR">
+            <a id="qr-panel-app-link" class="qr-panel-link" href="#" target="_blank" rel="noopener noreferrer"></a>
+        </div>
+        <div class="qr-panel-section">
+            <div class="qr-panel-section-header">
+                <span>Session Join</span>
+                <button id="qr-panel-session-copy" class="debug-action-btn" type="button">Copy</button>
+            </div>
+            <img id="qr-panel-session-image" class="qr-panel-image" alt="Session QR">
+            <a id="qr-panel-session-link" class="qr-panel-link" href="#" target="_blank" rel="noopener noreferrer"></a>
+        </div>
+    </div>
+    <div class="panel-hint">Session QR uses the active session id, or the typed id in Sessions when idle.</div>
+    <div id="qr-panel-status" class="panel-status">Open this panel to generate share links.</div>
+</div>
+
+<div id="serve-panel" class="hidden app-panel" data-floating-window="true" data-window-min-w="340" data-window-min-h="220">
+    <div class="app-panel-header">
+        <h4>Serve Local</h4>
+    </div>
+    <div class="serve-panel-body">
+        <div class="serve-panel-block">
+            <div class="serve-panel-label">Command</div>
+            <pre id="serve-panel-command" class="serve-panel-command">python3 -m http.server 5500 --bind 0.0.0.0</pre>
+        </div>
+        <div id="serve-panel-cwd" class="serve-panel-meta">Run from your project root.</div>
+        <div id="serve-panel-url" class="serve-panel-meta">Open URL after starting server.</div>
+        <div class="control-row serve-panel-actions">
+            <button id="serve-panel-copy-command" class="debug-action-btn">Copy Command</button>
+            <button id="serve-panel-copy-url" class="debug-action-btn">Copy URL</button>
+            <button id="serve-panel-refresh" class="debug-action-btn">Refresh</button>
+        </div>
+        <div class="panel-status" id="serve-panel-status">Open this panel to view local serve instructions.</div>
+    </div>
+</div>
+
+<div id="rhythm-create-panel" class="hidden app-panel" data-floating-window="true" data-window-min-w="420" data-window-min-h="300">
+    <div class="app-panel-header">
+        <h4>Rhythm Creator</h4>
+    </div>
+    <div class="rhythm-create-health" id="rhythm-create-health" data-floating-interactive="true">
+        <span class="rhythm-create-health-title">Connection Status</span>
+        <span id="rhythm-create-health-db" class="rhythm-create-health-pill">Database: --</span>
+        <span id="rhythm-create-health-notation" class="rhythm-create-health-pill">Notation Files: --</span>
+        <span id="rhythm-create-health-images" class="rhythm-create-health-pill">Images: --</span>
+        <button id="rhythm-create-health-check" class="debug-action-btn rhythm-create-health-btn">Run Check</button>
+    </div>
+    <div class="rhythm-create-body">
+        <div class="control-row"><label>Name:</label><input type="text" id="rhythm-create-name" class="ctrl-input" placeholder="Toro"></div>
+        <div class="control-row"><label>Subtitle:</label><input type="text" id="rhythm-create-subtitle" class="ctrl-input" placeholder="Brief description"></div>
+        <div class="control-row"><label>Region:</label><input type="text" id="rhythm-create-region" class="ctrl-input" placeholder="Guinea, West Africa"></div>
+        <div class="control-row"><label>Community:</label><input type="text" id="rhythm-create-community" class="ctrl-input" placeholder="Malinke"></div>
+        <div class="control-row"><label>Library:</label>
+            <select id="rhythm-create-library" class="ctrl-input">
+                <option value="Local">Local</option>
+                <option value="Community">Community</option>
+            </select>
+        </div>
+        <div class="control-row"><label>Creator:</label><input type="text" id="rhythm-create-creator" class="ctrl-input" placeholder="Your Name"></div>
+        <div class="control-row"><label>Color:</label><input type="color" id="rhythm-create-color" class="ctrl-input" value="#00ffff"></div>
+        <div class="control-row"><label>Latitude:</label><input type="number" id="rhythm-create-lat" class="ctrl-input" step="0.000001" placeholder="11.4167"></div>
+        <div class="control-row"><label>Longitude:</label><input type="number" id="rhythm-create-lon" class="ctrl-input" step="0.000001" placeholder="-8.0000"></div>
+        <div class="control-row rhythm-create-row-col">
+            <label>Context:</label>
+            <textarea id="rhythm-create-context" class="ctrl-input rhythm-create-textarea" rows="3" placeholder="Cultural context"></textarea>
+        </div>
+        <div class="control-row"><label>Notation Path:</label><input type="text" id="rhythm-create-notation-path" class="ctrl-input" placeholder="Notation/notations/toro.json"></div>
+        <div class="control-row"><label>Notation File:</label><input type="file" id="rhythm-create-notation-file" class="ctrl-input" accept="application/json,.json"></div>
+        <div class="control-row"><label>Store Notation File:</label><input type="checkbox" id="rhythm-create-upload-notation"></div>
+        <div class="control-row rhythm-create-row-col">
+            <label>Notation JSON:</label>
+            <textarea id="rhythm-create-notation-json" class="ctrl-input rhythm-create-textarea" rows="6" placeholder='{"beats":4,"subdivisions":4,"instruments":[...]}'></textarea>
+        </div>
+        <div class="control-row"><label>Lyrics Language:</label><input type="text" id="rhythm-create-lyrics-language" class="ctrl-input" placeholder="Susu"></div>
+        <div class="control-row"><label>Lyrics Role:</label><input type="text" id="rhythm-create-lyrics-role" class="ctrl-input" placeholder="Call"></div>
+        <div class="control-row rhythm-create-row-col">
+            <label>Lyrics:</label>
+            <textarea id="rhythm-create-lyrics" class="ctrl-input rhythm-create-textarea" rows="4" placeholder="One lyric block"></textarea>
+        </div>
+        <div class="control-row"><label>Tags:</label><input type="text" id="rhythm-create-tags" class="ctrl-input" placeholder="harvest, dance, beginner"></div>
+        <div class="control-row rhythm-create-row-col">
+            <label>Video Links:</label>
+            <textarea id="rhythm-create-videos" class="ctrl-input rhythm-create-textarea" rows="3" placeholder="One URL per line"></textarea>
+        </div>
+        <div class="control-row rhythm-create-row-col">
+            <label>Picture Links:</label>
+            <textarea id="rhythm-create-pictures" class="ctrl-input rhythm-create-textarea" rows="3" placeholder="One image URL per line"></textarea>
+        </div>
+        <div class="control-row"><label>Picture Files:</label><input type="file" id="rhythm-create-picture-files" class="ctrl-input" accept="image/*" multiple></div>
+        <input type="hidden" id="rhythm-create-notation-bucket" value="rhythm-notations">
+        <input type="hidden" id="rhythm-create-images-bucket" value="rhythm-images">
+        <div class="control-row rhythm-create-actions">
+            <button id="rhythm-create-submit" class="debug-action-btn">Save Rhythm</button>
+            <button id="rhythm-create-refresh" class="debug-action-btn">Refresh Library</button>
+            <button id="rhythm-create-reset" class="debug-action-btn">Reset</button>
+        </div>
+    </div>
+    <div class="panel-status" id="rhythm-create-status">Fill the fields and save your rhythm.</div>
+</div>
+
+<div id="stage-panel" class="hidden app-panel" data-floating-window="true" data-window-min-w="300" data-window-min-h="240" data-window-aspect="1.5">
+    <div class="app-panel-header">
+        <h4>Stage</h4>
+        <span class="panel-hint" id="stage-panel-hint">Drag icons to stage your mix: left/right = pan, front/back = loudness.</span>
+    </div>
+    <div class="control-row stage-panel-min-velocity-row" data-floating-interactive="true">
+        <label>Stage Range:</label>
+        <span class="ctrl-val" id="stage-back-velocity-val">Back 10%</span>
+        <span class="ctrl-val" id="stage-front-velocity-val">Front 100%</span>
+        <button id="stage-save-layout-btn" class="debug-action-btn" title="Save stage layout to local settings">Save</button>
+        <button id="stage-export-layout-btn" class="debug-action-btn" title="Export stage settings and layouts">Export</button>
+        <button id="stage-import-layout-btn" class="debug-action-btn" title="Import stage settings and layouts">Import</button>
+        <button id="stage-reset-layout-btn" class="debug-action-btn">Reset</button>
+        <input type="file" id="stage-import-layout-file" accept="application/json,.json" style="display:none;">
+    </div>
+    <div class="stage-panel-body">
+        <div id="stage-panel-area" class="stage-panel-area" data-floating-interactive="true">
+            <div class="stage-panel-ceiling" aria-hidden="true"><span>Back Stage</span></div>
+            <div class="stage-panel-position-labels" aria-hidden="true">
+                <span class="stage-pos-left">Stage Left</span>
+                <span class="stage-pos-center">Center Stage</span>
+                <span class="stage-pos-right">Stage Right</span>
+            </div>
+            <div class="stage-panel-floor" aria-hidden="true"><span>Front Stage</span></div>
+        </div>
+    </div>
+    <div class="panel-status" id="stage-panel-status">Load a rhythm to edit stage mix.</div>
+</div>
+
+<div id="trigger-pad-1" class="hidden app-panel trigger-pad-window" data-floating-window="true" data-window-min-w="220" data-window-min-h="190" data-pad-index="1">
+    <div class="app-panel-header trigger-pad-header">
+        <h4 class="trigger-pad-title">Pad - 1</h4>
+        <div class="trigger-pad-header-actions" data-floating-interactive="true">
+            <button class="debug-action-btn trigger-pad-duplicate-btn" data-pad-action="duplicate" title="Create another trigger pad">+ Pad</button>
+            <button class="debug-action-btn trigger-pad-close-btn" data-pad-action="close" title="Hide this trigger pad">Hide</button>
+            <button class="debug-action-btn trigger-pad-remove-btn" data-pad-action="remove" title="Remove this trigger pad">Remove</button>
+        </div>
+    </div>
+    <div class="control-row trigger-pad-controls" data-floating-interactive="true">
+        <label>Instrument:</label>
+        <select class="trigger-pad-instrument-select"></select>
+    </div>
+    <div class="trigger-pad-grid" data-floating-interactive="true"></div>
+    <div class="panel-hint trigger-pad-status">Ready</div>
+</div>
+
+<div id="trigger-pad-2" class="hidden app-panel trigger-pad-window" data-floating-window="true" data-window-min-w="220" data-window-min-h="190" data-pad-index="2">
+    <div class="app-panel-header trigger-pad-header">
+        <h4 class="trigger-pad-title">Pad - 2</h4>
+        <div class="trigger-pad-header-actions" data-floating-interactive="true">
+            <button class="debug-action-btn trigger-pad-duplicate-btn" data-pad-action="duplicate" title="Create another trigger pad">+ Pad</button>
+            <button class="debug-action-btn trigger-pad-close-btn" data-pad-action="close" title="Hide this trigger pad">Hide</button>
+            <button class="debug-action-btn trigger-pad-remove-btn" data-pad-action="remove" title="Remove this trigger pad">Remove</button>
+        </div>
+    </div>
+    <div class="control-row trigger-pad-controls" data-floating-interactive="true">
+        <label>Instrument:</label>
+        <select class="trigger-pad-instrument-select"></select>
+    </div>
+    <div class="trigger-pad-grid" data-floating-interactive="true"></div>
+    <div class="panel-hint trigger-pad-status">Ready</div>
+</div>
+
+<div id="trigger-pad-3" class="hidden app-panel trigger-pad-window" data-floating-window="true" data-window-min-w="220" data-window-min-h="190" data-pad-index="3">
+    <div class="app-panel-header trigger-pad-header">
+        <h4 class="trigger-pad-title">Pad - 3</h4>
+        <div class="trigger-pad-header-actions" data-floating-interactive="true">
+            <button class="debug-action-btn trigger-pad-duplicate-btn" data-pad-action="duplicate" title="Create another trigger pad">+ Pad</button>
+            <button class="debug-action-btn trigger-pad-close-btn" data-pad-action="close" title="Hide this trigger pad">Hide</button>
+            <button class="debug-action-btn trigger-pad-remove-btn" data-pad-action="remove" title="Remove this trigger pad">Remove</button>
+        </div>
+    </div>
+    <div class="control-row trigger-pad-controls" data-floating-interactive="true">
+        <label>Instrument:</label>
+        <select class="trigger-pad-instrument-select"></select>
+    </div>
+    <div class="trigger-pad-grid" data-floating-interactive="true"></div>
+    <div class="panel-hint trigger-pad-status">Ready</div>
+</div>
+
+<div id="trigger-pad-4" class="hidden app-panel trigger-pad-window" data-floating-window="true" data-window-min-w="220" data-window-min-h="190" data-pad-index="4">
+    <div class="app-panel-header trigger-pad-header">
+        <h4 class="trigger-pad-title">Pad - 4</h4>
+        <div class="trigger-pad-header-actions" data-floating-interactive="true">
+            <button class="debug-action-btn trigger-pad-duplicate-btn" data-pad-action="duplicate" title="Create another trigger pad">+ Pad</button>
+            <button class="debug-action-btn trigger-pad-close-btn" data-pad-action="close" title="Hide this trigger pad">Hide</button>
+            <button class="debug-action-btn trigger-pad-remove-btn" data-pad-action="remove" title="Remove this trigger pad">Remove</button>
+        </div>
+    </div>
+    <div class="control-row trigger-pad-controls" data-floating-interactive="true">
+        <label>Instrument:</label>
+        <select class="trigger-pad-instrument-select"></select>
+    </div>
+    <div class="trigger-pad-grid" data-floating-interactive="true"></div>
+    <div class="panel-hint trigger-pad-status">Ready</div>
+</div>
+
+<div id="trigger-pad-5" class="hidden app-panel trigger-pad-window" data-floating-window="true" data-window-min-w="220" data-window-min-h="190" data-pad-index="5">
+    <div class="app-panel-header trigger-pad-header">
+        <h4 class="trigger-pad-title">Pad - 5</h4>
+        <div class="trigger-pad-header-actions" data-floating-interactive="true">
+            <button class="debug-action-btn trigger-pad-duplicate-btn" data-pad-action="duplicate" title="Create another trigger pad">+ Pad</button>
+            <button class="debug-action-btn trigger-pad-close-btn" data-pad-action="close" title="Hide this trigger pad">Hide</button>
+            <button class="debug-action-btn trigger-pad-remove-btn" data-pad-action="remove" title="Remove this trigger pad">Remove</button>
+        </div>
+    </div>
+    <div class="control-row trigger-pad-controls" data-floating-interactive="true">
+        <label>Instrument:</label>
+        <select class="trigger-pad-instrument-select"></select>
+    </div>
+    <div class="trigger-pad-grid" data-floating-interactive="true"></div>
+    <div class="panel-hint trigger-pad-status">Ready</div>
+</div>
+
+<div id="trigger-pad-6" class="hidden app-panel trigger-pad-window" data-floating-window="true" data-window-min-w="220" data-window-min-h="190" data-pad-index="6">
+    <div class="app-panel-header trigger-pad-header">
+        <h4 class="trigger-pad-title">Pad - 6</h4>
+        <div class="trigger-pad-header-actions" data-floating-interactive="true">
+            <button class="debug-action-btn trigger-pad-duplicate-btn" data-pad-action="duplicate" title="Create another trigger pad">+ Pad</button>
+            <button class="debug-action-btn trigger-pad-close-btn" data-pad-action="close" title="Hide this trigger pad">Hide</button>
+            <button class="debug-action-btn trigger-pad-remove-btn" data-pad-action="remove" title="Remove this trigger pad">Remove</button>
+        </div>
+    </div>
+    <div class="control-row trigger-pad-controls" data-floating-interactive="true">
+        <label>Instrument:</label>
+        <select class="trigger-pad-instrument-select"></select>
+    </div>
+    <div class="trigger-pad-grid" data-floating-interactive="true"></div>
+    <div class="panel-hint trigger-pad-status">Ready</div>
+</div>
+
+<!-- LEFT: Rhythm selection panel -->
+<div id="rhythm-panel" data-floating-window="true" data-window-min-w="200" data-window-min-h="260">
+    <div class="rhythm-panel-header">
+        <h3>Rhythms</h3>
+        <div class="rhythm-panel-header-actions">
+            <button id="rhythm-open-create-btn" class="debug-action-btn" title="Open rhythm creator">Create</button>
+            <button id="rhythm-refresh-btn" class="debug-action-btn" title="Refresh rhythms from cloud library">Refresh</button>
+            <button id="rhythm-view-toggle" class="debug-action-btn" title="Switch between card list and carousel">Carousel View</button>
+        </div>
+    </div>
+    <div class="rhythm-browser-tabs" data-floating-interactive="true">
+        <button class="rhythm-tab-btn active" id="rhythm-tab-browse" title="Browse rhythms">Browse</button>
+        <button class="rhythm-tab-btn" id="rhythm-tab-journeys" title="Create and manage collections">Collections</button>
+    </div>
+    <div id="rhythm-create-inline" class="hidden" data-floating-interactive="true">
+        <div class="rhythm-create-inline-grid">
+            <div class="control-row"><label>Name:</label><input type="text" id="rhythm-inline-name" class="ctrl-input" placeholder="Toro"></div>
+            <div class="control-row"><label>Subtitle:</label><input type="text" id="rhythm-inline-subtitle" class="ctrl-input" placeholder="Short summary"></div>
+            <div class="control-row"><label>Region:</label><input type="text" id="rhythm-inline-region" class="ctrl-input" placeholder="Guinea, West Africa"></div>
+            <div class="control-row"><label>Community:</label><input type="text" id="rhythm-inline-community" class="ctrl-input" placeholder="Malinke"></div>
+            <div class="control-row"><label>Creator:</label><input type="text" id="rhythm-inline-creator" class="ctrl-input" placeholder="Your Name"></div>
+            <div class="control-row"><label>Library:</label>
+                <select id="rhythm-inline-library" class="ctrl-input">
+                    <option value="Local">Local</option>
+                    <option value="Community">Community</option>
+                </select>
+            </div>
+            <div class="control-row"><label>Color:</label><input type="color" id="rhythm-inline-color" class="ctrl-input" value="#00ffff"></div>
+            <div class="control-row"><label>Latitude:</label><input type="number" id="rhythm-inline-lat" class="ctrl-input" step="0.000001" placeholder="11.4167"></div>
+            <div class="control-row"><label>Longitude:</label><input type="number" id="rhythm-inline-lon" class="ctrl-input" step="0.000001" placeholder="-8.0000"></div>
+            <div class="control-row"><label>Tags:</label><input type="text" id="rhythm-inline-tags" class="ctrl-input" placeholder="dance, beginner"></div>
+            <div class="control-row rhythm-create-row-col"><label>Context:</label><textarea id="rhythm-inline-context" class="ctrl-input rhythm-create-textarea" rows="3" placeholder="Cultural context"></textarea></div>
+            <div class="control-row rhythm-create-row-col"><label>Lyrics:</label><textarea id="rhythm-inline-lyrics" class="ctrl-input rhythm-create-textarea" rows="3" placeholder="Lyrics text"></textarea></div>
+            <div class="control-row"><label>Lyrics Language:</label><input type="text" id="rhythm-inline-lyrics-language" class="ctrl-input" placeholder="Susu"></div>
+            <div class="control-row"><label>Lyrics Role:</label><input type="text" id="rhythm-inline-lyrics-role" class="ctrl-input" placeholder="Call"></div>
+            <div class="control-row rhythm-create-row-col"><label>Video Links:</label><textarea id="rhythm-inline-videos" class="ctrl-input rhythm-create-textarea" rows="3" placeholder="One URL per line"></textarea></div>
+            <div class="control-row rhythm-create-row-col"><label>Picture Links:</label><textarea id="rhythm-inline-pictures" class="ctrl-input rhythm-create-textarea" rows="3" placeholder="One image URL per line"></textarea></div>
+            <div class="control-row"><label>Picture Files:</label><input type="file" id="rhythm-inline-picture-files" class="ctrl-input" accept="image/*" multiple></div>
+            <div class="control-row"><label>Notation File:</label><input type="file" id="rhythm-inline-notation-file" class="ctrl-input" accept="application/json,.json"></div>
+            <div class="control-row"><label>Use Current Notation:</label><input type="checkbox" id="rhythm-inline-use-current-notation" checked></div>
+        </div>
+        <div class="rhythm-create-inline-actions">
+            <button id="rhythm-inline-preview-location" class="debug-action-btn">Preview Location</button>
+            <button id="rhythm-inline-save" class="debug-action-btn">Save To Library</button>
+            <button id="rhythm-inline-cancel" class="debug-action-btn">Cancel</button>
+        </div>
+        <div id="rhythm-inline-status" class="panel-status">Create mode is live. Title, context, media, and map preview update as you type.</div>
+    </div>
+    <div id="rhythm-browse-view" data-floating-interactive="true">
+        <div class="rhythm-source-toggle">
+            <button class="source-btn all-category active" id="all-btn" title="All Rhythms">
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg><span>All</span>
+            </button>
+            <button class="source-btn local-category" id="local-btn" title="Local Library">
+                <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg><span>Local</span>
+            </button>
+            <button class="source-btn community-category" id="community-btn" title="Community Shared">
+                <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg><span>Community</span>
+            </button>
+            <button class="source-btn demo-category" id="demo-btn" title="Demo mode from rhythms.txt">
+                <svg viewBox="0 0 24 24"><path d="M9 2h6l1 5h3v2h-1l-1.5 10.5a2 2 0 0 1-2 1.5h-5a2 2 0 0 1-2-1.5L6 9H5V7h3l1-5zm2 2-.6 3h3.2L13 4h-2zm1 7a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg><span>Demo</span>
+            </button>
+            <button class="source-btn journey-category create-collection-btn" id="journey-btn" title="Create a user collection">
+                <svg viewBox="0 0 24 24"><path d="M19 11h-6V5h-2v6H5v2h6v6h2v-6h6z"/></svg><span>Create Collection</span>
+            </button>
+        </div>
+        <div id="rhythm-list" data-floating-interactive="true"></div>
+        <div id="rhythm-carousel" data-floating-interactive="true">
+            <div class="carousel-content" data-floating-interactive="true"><div class="carousel-track" id="carousel-track"></div></div>
+        </div>
+    </div>
+    <div id="rhythm-journey-view" class="hidden" data-floating-interactive="true">
+        <div class="journey-builder-bar">
+            <input type="text" id="journey-name-input" class="ctrl-input" placeholder="Collection Name" data-floating-interactive="true">
+            <button id="journey-save-btn" class="debug-action-btn" data-floating-interactive="true">Save</button>
+            <button id="journey-new-btn" class="debug-action-btn" data-floating-interactive="true">New</button>
+        </div>
+        <div class="journey-builder-actions">
+            <button id="journey-clear-btn" class="debug-action-btn" data-floating-interactive="true">Clear</button>
+        </div>
+        <div class="journey-source-title">Rhythm Source (drag or +)</div>
+        <div id="journey-source-list" class="journey-source-list" data-floating-interactive="true"></div>
+        <div id="journey-drop-zone" class="journey-drop-zone" data-floating-interactive="true">
+            Drag rhythms into this collection
+        </div>
+        <div id="journey-items" class="journey-items" data-floating-interactive="true"></div>
+        <div class="journey-library-header">
+            <span>Saved Collections</span>
+            <div class="journey-library-actions">
+                <button id="journey-export-btn" class="debug-action-btn" data-floating-interactive="true">Export</button>
+                <button id="journey-import-btn" class="debug-action-btn" data-floating-interactive="true">Import</button>
+            </div>
+        </div>
+        <div id="journey-library" class="journey-library" data-floating-interactive="true"></div>
+        <input type="file" id="journey-import-file" accept="application/json" style="display:none;">
+    </div>
+</div>
+
+<div id="circular-panel" class="hidden app-panel" data-floating-window="true" data-window-min-w="280" data-window-min-h="220">
+    <div class="app-panel-header">
+        <h4>Rhythm Circular</h4>
+    </div>
+    <div class="carousel-content" data-floating-interactive="true">
+        <div class="carousel-track" id="circular-carousel-track"></div>
+    </div>
+</div>
+
+<!-- TOP: Info banner -->
+<div id="info-banner" data-floating-window="true" data-window-min-w="320" data-window-min-h="100">
+    <div class="info-title" id="info-title"></div>
+    <div class="info-description" id="info-description"></div>
+    <div class="info-distance" id="info-distance"></div>
+</div>
+
+<!-- CENTER: Journey overlay -->
+<div id="journey-overlay">
+    <div class="journey-content">
+        <div class="journey-title" id="journey-title"></div>
+        <div class="journey-subtitle" id="journey-subtitle"></div>
+    </div>
+</div>
+
+<!-- BOTTOM: Cultural context + media -->
+<div id="bottom-ui-container">
+    <div id="history-box" data-floating-window="true" data-window-min-w="280" data-window-min-h="160">
+        <div class="history-title">Cultural Context</div>
+        <div class="history-text" id="history-text"></div>
+    </div>
+    <div id="image-window" data-floating-window="true" data-window-min-w="240" data-window-min-h="220">
+        <div class="media-window-toolbar">
+            <span class="media-window-toolbar-label">Media</span>
+            <div class="media-toggle-group">
+            <!-- Song Text (document icon) -->
+            <button class="media-toggle-btn" id="media-lyrics-btn" title="Song Text"><svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg></button>
+            <!-- Notation toggle -->
+            <button class="media-toggle-btn" id="media-notation-btn" title="Notation"><svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg></button>
+            </div>
+        </div>
+        <div class="media-container">
+            <img id="context-image" src="" alt="Cultural context">
+            <div id="video-player-container"><iframe id="video-player" src="" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+            <div id="lyrics-overlay" class="lyrics-overlay">
+                <div class="lyrics-header">
+                    <span class="lyrics-header-title">Song Text</span>
+                    <div class="lyrics-mode-toggle">
+                        <button class="lyrics-mode-btn active" id="lyrics-scroll-btn">Scroll</button>
+                        <button class="lyrics-mode-btn" id="lyrics-split-btn">Split</button>
+                    </div>
+                    <button class="lyrics-close-btn" id="lyrics-close-btn" title="Close">&#x2715;</button>
+                </div>
+                <div class="lyrics-body" id="lyrics-body"><div class="lyrics-empty">No song text available</div></div>
+            </div>
+        </div>
+        <!-- Unified media nav: cycles through photos AND videos -->
+        <div class="media-nav" id="media-nav">
+            <button class="media-nav-btn" id="media-prev-btn" title="Previous"><svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg></button>
+            <span class="media-nav-label" id="media-nav-label">1 / 1</span>
+            <button class="media-nav-btn" id="media-next-btn" title="Next"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button>
+        </div>
+        <div class="media-caption" id="media-caption"></div>
+    </div>
+</div>
+
+<!-- Notation overlay (windowed, draggable, slider-resizable) -->
+<div id="notation-overlay" class="notation-overlay" data-floating-window="true" data-window-min-w="320" data-window-min-h="240">
+    <iframe id="notation-iframe" src="" class="notation-iframe"></iframe>
+    <!-- Resize handles (all sides + corners) -->
+    <div class="notation-resize-handle notation-resize-handle-n" data-resize-dir="n" title="Resize"></div>
+    <div class="notation-resize-handle notation-resize-handle-e" data-resize-dir="e" title="Resize"></div>
+    <div class="notation-resize-handle notation-resize-handle-s" data-resize-dir="s" title="Resize"></div>
+    <div class="notation-resize-handle notation-resize-handle-w" data-resize-dir="w" title="Resize"></div>
+    <div class="notation-resize-handle notation-resize-handle-nw" data-resize-dir="nw" title="Resize"></div>
+    <div class="notation-resize-handle notation-resize-handle-ne" data-resize-dir="ne" title="Resize"></div>
+    <div class="notation-resize-handle notation-resize-handle-sw" data-resize-dir="sw" title="Resize"></div>
+    <div class="notation-resize-handle notation-resize-handle-se" data-resize-dir="se" title="Resize"></div>
+</div>
+
+<!-- Circular notation dedicated free window -->
+<div id="notation-circular-overlay" class="notation-overlay notation-circular-overlay" data-floating-window="true" data-window-min-w="280" data-window-min-h="240">
+    <div class="notation-circular-hud">
+        <div class="notation-circular-corner notation-circular-corner-tl">
+            <div class="notation-circular-tempo-hud" id="notation-circular-tempo-hud">
+                <div class="notation-circular-tempo-text" id="notation-circular-tempo-text">100<span>BPM</span></div>
+            </div>
+        </div>
+        <div class="notation-circular-corner notation-circular-corner-tr">
+            <div class="notation-circular-beat-hud" id="notation-circular-beat-hud">Beat 1.1</div>
+        </div>
+    </div>
+    <iframe id="notation-circular-iframe" src="" class="notation-iframe"></iframe>
+</div>
+
+<style>
+/* Floating window controls */
+.notation-close-btn-floating {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 80;
+}
+.floating-window {
+  touch-action: manipulation;
+}
+.floating-window.dragging,
+.floating-window.resizing {
+  user-select: none;
+}
+.floating-window.dragging iframe,
+.floating-window.resizing iframe {
+  pointer-events: none;
+}
+.floating-window[data-floating-locked="1"] .notation-resize-handle,
+.floating-window[data-floating-locked="1"] .floating-drag-zone {
+  display: none !important;
+}
+.floating-drag-zone {
+  position: absolute;
+  background: transparent;
+  pointer-events: auto;
+  z-index: 66;
+  touch-action: none;
+}
+.floating-drag-zone-top {
+  top: 6px;
+  left: 12px;
+  right: 44px;
+  height: 20px;
+  cursor: move;
+}
+.floating-drag-zone-bottom {
+  bottom: 6px;
+  left: 12px;
+  right: 12px;
+  height: 20px;
+  cursor: move;
+}
+.floating-drag-zone-left {
+  top: 12px;
+  bottom: 12px;
+  left: 6px;
+  width: 20px;
+  cursor: move;
+}
+.floating-drag-zone-right {
+  top: 12px;
+  bottom: 12px;
+  right: 6px;
+  width: 20px;
+  cursor: move;
+}
+.map-window-drag-bar {
+  top: 8px;
+  left: 12px;
+  right: clamp(72px, 9vw, 132px);
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 255, 255, 0.4);
+  background: linear-gradient(180deg, rgba(0, 28, 44, 0.72), rgba(0, 18, 30, 0.62));
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.2), inset 0 0 8px rgba(0, 255, 255, 0.1);
+}
+.map-window-drag-label {
+  color: rgba(170, 245, 255, 0.92);
+  font-family: var(--font-display, 'Orbitron', sans-serif);
+  font-size: clamp(10px, calc(10px * var(--text-scale)), 13px);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.map-window-mode-btn {
+  pointer-events: auto;
+  appearance: none;
+  border: 1px solid rgba(166, 235, 255, 0.55);
+  background: rgba(0, 0, 0, 0.32);
+  color: rgba(220, 250, 255, 0.95);
+  border-radius: 7px;
+  padding: 1px 7px;
+  font-family: var(--font-display, 'Orbitron', sans-serif);
+  font-size: clamp(9px, calc(9px * var(--text-scale)), 11px);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.map-window-mode-btn:hover {
+  box-shadow: 0 0 0 1px rgba(180, 244, 255, 0.6), 0 0 10px rgba(120, 220, 255, 0.38);
+}
+.map-window-mode-btn:active {
+  transform: translateY(1px);
+}
+.map-window-mode-btn.is-windowed {
+  border-color: rgba(255, 215, 110, 0.72);
+  color: rgba(255, 236, 170, 0.98);
+  box-shadow: 0 0 8px rgba(255, 215, 110, 0.32);
+}
+.map-window-mode-btn.is-fullscreen {
+  border-color: rgba(166, 235, 255, 0.72);
+  color: rgba(220, 250, 255, 0.95);
+  box-shadow: 0 0 8px rgba(120, 220, 255, 0.25);
+}
+/* Keep button clickable while drag text stays inert. */
+.map-window-mode-btn,
+.map-window-drag-label {
+  position: relative;
+  z-index: 1;
+}
+.map-window-drag-bar * {
+  user-select: none;
+}
+.map-window-mode-btn {
+  user-select: none;
+}
+.notation-resize-handle {
+  position: absolute;
+  z-index: 70;
+  touch-action: none;
+  border-radius: 999px;
+}
+.notation-resize-handle-n,
+.notation-resize-handle-s {
+  left: 18px;
+  right: 18px;
+  height: 12px;
+}
+.notation-resize-handle-e,
+.notation-resize-handle-w {
+  top: 18px;
+  bottom: 18px;
+  width: 12px;
+}
+.notation-resize-handle-n {
+  top: 0;
+  cursor: ns-resize;
+}
+.notation-resize-handle-s {
+  bottom: 0;
+  cursor: ns-resize;
+}
+.notation-resize-handle-e {
+  right: 0;
+  cursor: ew-resize;
+}
+.notation-resize-handle-w {
+  left: 0;
+  cursor: ew-resize;
+}
+.notation-resize-handle-nw,
+.notation-resize-handle-ne,
+.notation-resize-handle-sw,
+.notation-resize-handle-se {
+  width: 18px;
+  height: 18px;
+  z-index: 70;
+}
+.notation-resize-handle-nw {
+  left: 0;
+  top: 0;
+  cursor: nwse-resize;
+}
+.notation-resize-handle-ne {
+  right: 0;
+  top: 0;
+  cursor: nesw-resize;
+}
+.notation-resize-handle-sw {
+  left: 0;
+  bottom: 0;
+  cursor: nesw-resize;
+}
+.notation-resize-handle-se {
+  right: 0;
+  bottom: 0;
+  cursor: nwse-resize;
+}
+.notation-resize-handle-nw::after,
+.notation-resize-handle-ne::after,
+.notation-resize-handle-sw::after,
+.notation-resize-handle-se::after {
+  content: "";
+  position: absolute;
+  font-family: "Segoe UI Symbol", "Noto Sans Symbols2", "Arial Unicode MS", sans-serif;
+  font-size: 25px;
+  line-height: 1;
+  color: rgba(255,255,255,0.85);
+  text-shadow: 0 0 6px rgba(0,0,0,0.45);
+  pointer-events: none;
+}
+.notation-resize-handle-nw::after {
+  content: "◜";
+  left: 2px;
+  top: 0;
+}
+.notation-resize-handle-ne::after {
+  content: "◝";
+  right: 2px;
+  top: 0;
+}
+.notation-resize-handle-sw::after {
+  content: "◟";
+  left: 2px;
+  bottom: 1px;
+}
+.notation-resize-handle-se::after {
+  content: "◞";
+  right: 2px;
+  bottom: 1px;
+}
+.notation-resize-handle-n::after,
+.notation-resize-handle-s::after,
+.notation-resize-handle-e::after,
+.notation-resize-handle-w::after {
+  content: none;
+}
+.notation-overlay.resizing {
+  user-select: none;
+}
+.notation-overlay.resizing .notation-iframe {
+  pointer-events: none;
+}
+</style>
+
+<script>
+// Shared drag + resize manager for floating panels/windows
+(function() {
+  function initFloatingWindows() {
+  const windows = Array.from(document.querySelectorAll('[data-floating-window="true"]'));
+  if (windows.length === 0) return;
+
+  const HANDLE_DIRECTIONS = ['n', 'e', 's', 'w', 'nw', 'ne', 'sw', 'se'];
+  const DRAG_ZONE_EDGES = ['top', 'bottom', 'left', 'right'];
+  const DEFAULT_MIN_W = 220;
+  const DEFAULT_MIN_H = 120;
+  const EDGE_GAP = 10;
+  const WINDOW_GAP = 4;
+  const MIN_TOP_UI_CLEARANCE = 56;
+  const PERSIST_STORAGE_KEY = 'rrcFloatingWindowStateV1';
+  const PERSIST_EXCLUDED_IDS = new Set(['cesiumContainer']);
+  const startupParams = new URLSearchParams(window.location.search || '');
+  const startupMobileMode = (() => {
+    if (!startupParams.has('mobile')) return false;
+    const value = String(startupParams.get('mobile') || '').trim().toLowerCase();
+    return !(value === '0' || value === 'false' || value === 'off' || value === 'no');
+  })();
+  const skipPersistedWindowRestore = startupParams.get('padRemote') === '1' || startupMobileMode;
+  if (skipPersistedWindowRestore) {
+    windows.forEach((panel) => {
+      if (!(panel instanceof HTMLElement)) return;
+      if (panel.id === 'cesiumContainer') return;
+      panel.classList.add('hidden', 'panel-hidden');
+      panel.classList.remove('active');
+    });
+  }
+
+  function getTopUiProtection() {
+    const fallback = {
+      topClearance: MIN_TOP_UI_CLEARANCE,
+      sideMode: false,
+      sideStripRight: WINDOW_GAP,
+      sideStripBottom: MIN_TOP_UI_CLEARANCE
+    };
+    const topUi = document.getElementById('top-panel-toggles');
+    if (!topUi) return fallback;
+    const style = window.getComputedStyle(topUi);
+    if (style.display === 'none' || style.visibility === 'hidden') return fallback;
+    const rect = topUi.getBoundingClientRect();
+    const sideMode = topUi.classList.contains('top-buttons-side');
+    if (!sideMode) {
+      return {
+        topClearance: Math.max(MIN_TOP_UI_CLEARANCE, Math.ceil(rect.bottom + 8)),
+        sideMode: false,
+        sideStripRight: WINDOW_GAP,
+        sideStripBottom: MIN_TOP_UI_CLEARANCE
+      };
+    }
+    return {
+      // In side mode, only reserve the left strip instead of blocking the whole top row.
+      topClearance: MIN_TOP_UI_CLEARANCE,
+      sideMode: true,
+      sideStripRight: Math.max(WINDOW_GAP, Math.ceil(rect.right + 8)),
+      sideStripBottom: Math.max(MIN_TOP_UI_CLEARANCE, Math.ceil(rect.bottom + 8))
+    };
+  }
+
+  function getTopUiClearance() {
+    return getTopUiProtection().topClearance;
+  }
+
+  function getMinTopForSpan(left, width) {
+    const protection = getTopUiProtection();
+    if (!protection.sideMode) return protection.topClearance;
+    const spanLeft = Number(left) || 0;
+    const spanRight = spanLeft + Math.max(0, Number(width) || 0);
+    const intersectsSideStrip = spanLeft < protection.sideStripRight && spanRight > WINDOW_GAP;
+    return intersectsSideStrip ? protection.sideStripBottom : protection.topClearance;
+  }
+  const INTERACTIVE_SELECTOR = [
+    'button', 'a', 'input', 'select', 'textarea', 'label', 'summary',
+    'iframe', 'video', '[contenteditable="true"]', '[role="button"]',
+    '#cesiumContainer', '#cesiumContainer *', '.cesium-viewer', '.cesium-viewer *',
+    '.cesium-viewer-toolbar', '.cesium-baseLayerPicker-dropDown',
+    'img', '.media-container', '.lyrics-overlay', '.carousel-content',
+    '.rhythm-point', '.carousel-card',
+    '[data-no-drag]', '[data-floating-interactive="true"]'
+  ].join(', ');
+
+  let topZ = 2600;
+  const FLOATING_Z_BASE = 2600;
+  const FLOATING_Z_CEILING = 4090;
+  let multiselectMode = false;
+  const selectedPanels = new Set();
+  let selectionPointerId = null;
+  let selectionStartPoint = null;
+  let selectionBox = null;
+  let selectionShiftAppend = false;
+  let persistTimer = null;
+  let persistMuted = false;
+  const persistedWindowState = readPersistedWindowState();
+  let persistedLayoutViewport = null;
+  const CORE_WINDOW_IDS = ['rhythm-panel', 'info-banner', 'history-box', 'image-window'];
+  const persistedStateHidesAllCoreWindows = CORE_WINDOW_IDS.every((id) => {
+    const state = persistedWindowState[id];
+    if (!state || typeof state !== 'object') return false;
+    return state.hidden === true || state.panelHidden === true;
+  });
+
+  function isPanelLocked(panel) {
+    return !!panel && panel.dataset.floatingLocked === '1';
+  }
+
+  function isSelectablePanel(panel) {
+    if (!panel) return false;
+    if (panel.id === 'cesiumContainer') return false;
+    if (isPanelLocked(panel)) return false;
+    if (panel.classList.contains('hidden') || panel.classList.contains('panel-hidden')) return false;
+    const style = window.getComputedStyle(panel);
+    if (style.display === 'none' || style.visibility === 'hidden') return false;
+    const rect = panel.getBoundingClientRect();
+    return rect.width >= 20 && rect.height >= 20;
+  }
+
+  function syncSelectedPanelClasses() {
+    windows.forEach((panel) => {
+      if (!panel) return;
+      panel.classList.toggle('floating-window-selected', selectedPanels.has(panel));
+    });
+  }
+
+  function clearSelectedPanels() {
+    selectedPanels.clear();
+    syncSelectedPanelClasses();
+  }
+
+  function setPanelSelected(panel, selected) {
+    if (!isSelectablePanel(panel)) return;
+    if (selected) selectedPanels.add(panel);
+    else selectedPanels.delete(panel);
+    syncSelectedPanelClasses();
+  }
+
+  function ensureSelectionBox() {
+    if (selectionBox && selectionBox.isConnected) return selectionBox;
+    selectionBox = document.createElement('div');
+    selectionBox.className = 'window-selection-box';
+    document.body.appendChild(selectionBox);
+    return selectionBox;
+  }
+
+  function hideSelectionBox() {
+    if (selectionBox && selectionBox.isConnected) selectionBox.remove();
+    selectionBox = null;
+  }
+
+  function updateMarqueeSelection(currentX, currentY) {
+    if (!selectionStartPoint) return;
+    const minX = Math.min(selectionStartPoint.x, currentX);
+    const minY = Math.min(selectionStartPoint.y, currentY);
+    const maxX = Math.max(selectionStartPoint.x, currentX);
+    const maxY = Math.max(selectionStartPoint.y, currentY);
+    const box = ensureSelectionBox();
+    box.style.left = Math.round(minX) + 'px';
+    box.style.top = Math.round(minY) + 'px';
+    box.style.width = Math.round(maxX - minX) + 'px';
+    box.style.height = Math.round(maxY - minY) + 'px';
+
+    if (!selectionShiftAppend) selectedPanels.clear();
+    windows.forEach((panel) => {
+      if (!isSelectablePanel(panel)) return;
+      const rect = panel.getBoundingClientRect();
+      const intersects = !(rect.right < minX || rect.left > maxX || rect.bottom < minY || rect.top > maxY);
+      if (intersects) selectedPanels.add(panel);
+    });
+    syncSelectedPanelClasses();
+  }
+
+  function stopMarqueeSelection() {
+    selectionPointerId = null;
+    selectionStartPoint = null;
+    selectionShiftAppend = false;
+    hideSelectionBox();
+  }
+
+  function setMultiselectMode(nextEnabled) {
+    multiselectMode = !!nextEnabled;
+    document.body.classList.toggle('window-multiselect-enabled', multiselectMode);
+    if (!multiselectMode) {
+      clearSelectedPanels();
+      stopMarqueeSelection();
+    }
+  }
+
+  // ── Layout model ─────────────────────────────────────────────────────────
+  // Every window has an INTENT: the rectangle it was given (by the user, a saved layout or
+  // the app) together with the viewport it was given in. What is on screen is always the
+  // intent fitted to the current viewport, so shrinking the browser never destroys a layout
+  // and growing it again brings every window back. Only intents are saved.
+  // Reference size of each window in the app's default layout (as designed on a 1680x915 screen).
+  // Text scale is 1 at this size and follows the window from there, on every screen.
+  const DESIGN_BASE_SIZES = {
+    'rhythm-panel': [365, 804], 'info-banner': [405, 152], 'history-box': [406, 414], 'image-window': [406, 240],
+    'notation-overlay': [1092, 734], 'notation-circular-overlay': [536, 647],
+    'views-panel': [539, 275], 'auth-panel': [435, 250], 'session-panel': [320, 455], 'serve-panel': [680, 451],
+    'rhythm-create-panel': [783, 300], 'stage-panel': [1147, 765], 'circular-panel': [420, 236], 'nav-toolbar': [140, 232]
+  };
+  const declaredMinSizes = new Map(); // id -> { minW, minH } from markup/CSS, before any fitting
+  const intents = new Map();      // id -> { left, top, width, height, vw, vh, vt, user }
+  const lastApplied = new Map();  // id -> "l,t,w,h" last written by the manager
+  const baseSizes = new Map();    // id -> { w, h } fixed reference size for text scaling
+  let reflowQueued = false;
+
+  function isLayoutManaged(panel) {
+    return !!panel && !!panel.id && !PERSIST_EXCLUDED_IDS.has(panel.id) && !isPanelLocked(panel);
+  }
+
+  function currentViewport() {
+    return { vw: window.innerWidth, vh: window.innerHeight, vt: getTopUiClearance() };
+  }
+
+  function styleRect(panel) {
+    const left = parseFloat(panel.style.left);
+    const top = parseFloat(panel.style.top);
+    const width = parseFloat(panel.style.width);
+    const height = parseFloat(panel.style.height);
+    if (![left, top, width, height].every(Number.isFinite) || width < 20 || height < 20) return null;
+    return { left, top, width, height };
+  }
+
+  const rectKey = (r) => `${Math.round(r.left)},${Math.round(r.top)},${Math.round(r.width)},${Math.round(r.height)}`;
+
+  function setIntent(panel, rect, viewport, user) {
+    if (!isLayoutManaged(panel) || !rect) return;
+    const vp = viewport || currentViewport();
+    const prev = intents.get(panel.id);
+    intents.set(panel.id, {
+      left: rect.left, top: rect.top, width: rect.width, height: rect.height,
+      vw: vp.vw, vh: vp.vh, vt: Number.isFinite(vp.vt) ? vp.vt : getTopUiClearance(),
+      user: user === undefined ? !!(prev && prev.user) : !!user
+    });
+  }
+
+  // The intent rectangle mapped into the current viewport. Edges are mapped, not sizes,
+  // so windows that were side by side stay side by side at every screen size.
+  function fitIntent(panel, intent) {
+    const cur = currentViewport();
+    let left = intent.left;
+    let top = intent.top;
+    let width = intent.width;
+    let height = intent.height;
+    const sameViewport = Math.abs(cur.vw - intent.vw) < 1 && Math.abs(cur.vh - intent.vh) < 1 && Math.abs(cur.vt - intent.vt) < 1;
+    if (!sameViewport) {
+      const sx = cur.vw / Math.max(1, intent.vw);
+      const srcH = Math.max(1, intent.vh - intent.vt);
+      const dstH = Math.max(1, cur.vh - cur.vt);
+      const mapY = (y) => cur.vt + (y - intent.vt) * (dstH / srcH);
+      const right = (intent.left + intent.width) * sx;
+      const bottom = mapY(intent.top + intent.height);
+      left = intent.left * sx;
+      top = mapY(intent.top);
+      width = right - left;
+      height = bottom - top;
+      const aspect = parseFloat(panel.dataset.windowAspect);
+      if (Number.isFinite(aspect) && aspect > 0) {
+        // Aspect-locked windows keep their shape inside the mapped box.
+        const fitW = Math.min(width, height * aspect);
+        left += (width - fitW) / 2;
+        width = fitW;
+        height = fitW / aspect;
+      }
+    }
+    // On a smaller screen the minimum size shrinks with the layout (down to 60%), otherwise
+    // windows that cannot shrink would push into their neighbours. Content scales with the window.
+    const declared = declaredMinFor(panel);
+    const shrinkX = Math.max(0.6, Math.min(1, cur.vw / Math.max(1, intent.vw)));
+    const shrinkY = Math.max(0.6, Math.min(1, (cur.vh - cur.vt) / Math.max(1, intent.vh - intent.vt)));
+    const minW = Math.min(declared.minW, intent.width) * shrinkX;
+    const minH = Math.min(declared.minH, intent.height) * shrinkY;
+    const maxW = Math.max(minW, cur.vw - WINDOW_GAP * 2);
+    const maxH = Math.max(minH, cur.vh - cur.vt - WINDOW_GAP);
+    const fittedW = Math.max(minW, Math.min(width, maxW));
+    const fittedH = Math.max(minH, Math.min(height, maxH));
+    left -= (fittedW - width) / 2;
+    top -= (fittedH - height) / 2;
+    const moved = clampPanel(panel, left, top, fittedW, fittedH);
+    return { left: Math.round(moved.left), top: Math.round(moved.top), width: Math.round(fittedW), height: Math.round(fittedH) };
+  }
+
+  function declaredMinFor(panel) {
+    let declared = declaredMinSizes.get(panel.id);
+    if (!declared) {
+      const style = window.getComputedStyle(panel);
+      const cssMinW = parseFloat(style.minWidth);
+      const cssMinH = parseFloat(style.minHeight);
+      const size = minSizeFor(panel);
+      declared = {
+        minW: Math.max(size.minW, Number.isFinite(cssMinW) ? cssMinW : 0),
+        minH: Math.max(size.minH, Number.isFinite(cssMinH) ? cssMinH : 0),
+        cssMinW: Number.isFinite(cssMinW) ? cssMinW : 0,
+        cssMinH: Number.isFinite(cssMinH) ? cssMinH : 0
+      };
+      declaredMinSizes.set(panel.id, declared);
+    }
+    return declared;
+  }
+
+  function writeRect(panel, rect) {
+    lastApplied.set(panel.id, rectKey(rect));
+    // Let a fitted window go below its stylesheet minimum; restore the stylesheet value otherwise.
+    const declared = declaredMinFor(panel);
+    if (rect.width < declared.cssMinW) { panel.style.minWidth = rect.width + 'px'; panel.dataset.fitMinW = '1'; }
+    else if (panel.dataset.fitMinW) { panel.style.minWidth = ''; delete panel.dataset.fitMinW; }
+    if (rect.height < declared.cssMinH) { panel.style.minHeight = rect.height + 'px'; panel.dataset.fitMinH = '1'; }
+    else if (panel.dataset.fitMinH) { panel.style.minHeight = ''; delete panel.dataset.fitMinH; }
+    panel.style.position = 'fixed';
+    panel.style.left = rect.left + 'px';
+    panel.style.top = rect.top + 'px';
+    panel.style.width = rect.width + 'px';
+    panel.style.height = rect.height + 'px';
+    panel.style.right = 'auto';
+    panel.style.bottom = 'auto';
+    panel.style.margin = '0';
+    panel.style.transform = 'none';
+    panel.dataset.windowPinned = '1';
+  }
+
+  function applyIntent(panel) {
+    const intent = intents.get(panel.id);
+    if (!intent || !isLayoutManaged(panel)) return false;
+    const rect = fitIntent(panel, intent);
+    writeRect(panel, rect);
+    updateWindowScale(panel, rect.width, rect.height);
+    return true;
+  }
+
+  function reflowAllWindows() {
+    reflowQueued = false;
+    windows.forEach((panel) => {
+      if (panel.classList.contains('dragging') || panel.classList.contains('resizing')) return;
+      applyIntent(panel);
+    });
+    if (typeof window._refreshPadNotationLayout === 'function') {
+      try { window._refreshPadNotationLayout(); } catch (err) {}
+    }
+  }
+
+  function queueReflow() {
+    if (reflowQueued) return;
+    reflowQueued = true;
+    requestAnimationFrame(reflowAllWindows);
+  }
+
+  // Geometry written by anything other than the manager (drag, resize, app code) becomes the new intent.
+  function adoptExternalGeometry(panel) {
+    if (!isLayoutManaged(panel) || panel.dataset.windowPinned !== '1') return;
+    const rect = styleRect(panel);
+    if (!rect) return;
+    const key = rectKey(rect);
+    if (lastApplied.get(panel.id) === key) return;
+    lastApplied.set(panel.id, key);
+    const byUser = panel.classList.contains('dragging') || panel.classList.contains('resizing');
+    setIntent(panel, rect, currentViewport(), byUser ? true : undefined);
+  }
+
+  // Layouts saved before viewports were recorded: assume the screen they were made on was at
+  // least as large as the area the windows cover.
+  function inferLayoutViewport(layout) {
+    let vw = window.innerWidth;
+    let vh = window.innerHeight;
+    Object.values(layout || {}).forEach((st) => {
+      if (!st || typeof st !== 'object') return;
+      const right = toFiniteNumber(st.left, NaN) + toFiniteNumber(st.width, NaN);
+      const bottom = toFiniteNumber(st.top, NaN) + toFiniteNumber(st.height, NaN);
+      if (Number.isFinite(right)) vw = Math.max(vw, right + WINDOW_GAP);
+      if (Number.isFinite(bottom)) vh = Math.max(vh, bottom + WINDOW_GAP);
+    });
+    return { vw, vh, vt: getTopUiClearance() };
+  }
+
+  function intentFromState(panel, state, fallbackViewport) {
+    const left = toFiniteNumber(state.left, NaN);
+    const top = toFiniteNumber(state.top, NaN);
+    const width = toFiniteNumber(state.width, NaN);
+    const height = toFiniteNumber(state.height, NaN);
+    if (![left, top, width, height].every(Number.isFinite) || width < 20 || height < 20) return false;
+    const vw = toFiniteNumber(state.vw, NaN);
+    const vh = toFiniteNumber(state.vh, NaN);
+    const viewport = Number.isFinite(vw) && Number.isFinite(vh)
+      ? { vw, vh, vt: toFiniteNumber(state.vt, getTopUiClearance()) }
+      : fallbackViewport;
+    setIntent(panel, { left, top, width, height }, viewport, state.user !== false);
+    const baseW = toFiniteNumber(state.baseW, NaN);
+    const baseH = toFiniteNumber(state.baseH, NaN);
+    if (baseW >= 20 && baseH >= 20 && !DESIGN_BASE_SIZES[panel.id]) baseSizes.set(panel.id, { w: baseW, h: baseH });
+    return true;
+  }
+
+  // Reference size for text scaling: the window's own CSS size, measured once and remembered,
+  // so the same window size always gives the same text size.
+  function ensureBaseSize(panel) {
+    const known = baseSizes.get(panel.id);
+    if (known) return known;
+    const design = DESIGN_BASE_SIZES[panel.id];
+    if (design) {
+      const base = { w: design[0], h: design[1] };
+      baseSizes.set(panel.id, base);
+      return base;
+    }
+    const style = window.getComputedStyle(panel);
+    if (style.display === 'none') return null;
+    const keepW = panel.style.width;
+    const keepH = panel.style.height;
+    panel.style.width = '';
+    panel.style.height = '';
+    const natural = panel.getBoundingClientRect();
+    panel.style.width = keepW;
+    panel.style.height = keepH;
+    if (natural.width < 20 || natural.height < 20) return null;
+    const base = { w: Math.round(natural.width), h: Math.round(natural.height) };
+    baseSizes.set(panel.id, base);
+    return base;
+  }
+
+  function isShown(panel) {
+    if (!panel || panel.classList.contains('hidden') || panel.classList.contains('panel-hidden')) return false;
+    const style = window.getComputedStyle(panel);
+    return style.display !== 'none' && style.visibility !== 'hidden';
+  }
+
+  // A window that was never placed by the user opens in the nearest free area instead of
+  // on top of what is already open. If there is no free area it stays where it is.
+  function placeOnShow(panel) {
+    if (!isLayoutManaged(panel) || !isShown(panel)) return;
+    const intent = intents.get(panel.id);
+    if (intent && intent.user) return;
+    const r = panel.getBoundingClientRect();
+    if (r.width < 20 || r.height < 20) return;
+    const cur = currentViewport();
+    const width = Math.min(r.width, cur.vw - WINDOW_GAP * 2);
+    const height = Math.min(r.height, cur.vh - cur.vt - WINDOW_GAP);
+    const others = windows
+      .filter((el) => el !== panel && isLayoutManaged(el) && isShown(el))
+      .map((el) => el.getBoundingClientRect())
+      .filter((o) => o.width >= 20 && o.height >= 20);
+    const hits = (x, y) => others.some((o) => !(x + width <= o.left || o.right <= x || y + height <= o.top || o.bottom <= y));
+    const start = clampPanel(panel, r.left, r.top, width, height);
+    let best = null;
+    if (!hits(start.left, start.top)) {
+      best = start;
+    } else {
+      const step = 24;
+      const maxX = cur.vw - width - WINDOW_GAP;
+      const maxY = cur.vh - height - WINDOW_GAP;
+      let bestDist = Infinity;
+      for (let y = cur.vt; y <= maxY; y += step) {
+        for (let x = WINDOW_GAP; x <= maxX; x += step) {
+          if (hits(x, y)) continue;
+          const d = (x - start.left) * (x - start.left) + (y - start.top) * (y - start.top);
+          if (d < bestDist) { bestDist = d; best = { left: x, top: y }; }
+        }
+      }
+    }
+    if (!best) best = start;
+    const moved = clampPanel(panel, best.left, best.top, width, height);
+    const rect = { left: Math.round(moved.left), top: Math.round(moved.top), width: Math.round(width), height: Math.round(height) };
+    setIntent(panel, rect, cur, false);
+    writeRect(panel, rect);
+    updateWindowScale(panel, rect.width, rect.height);
+  }
+
+  function readPersistedWindowState() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(PERSIST_STORAGE_KEY) || '{}');
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (err) {
+      return {};
+    }
+  }
+
+  function toFiniteNumber(value, fallback) {
+    const n = typeof value === 'number' ? value : parseFloat(value);
+    return Number.isFinite(n) ? n : fallback;
+  }
+
+  function applyPersistedWindowState(panel, state) {
+    if (!panel || !state || !panel.id || PERSIST_EXCLUDED_IDS.has(panel.id)) return;
+
+    if (intentFromState(panel, state, persistedLayoutViewport)) {
+      applyIntent(panel);
+    }
+
+    if (panel.id !== 'cesiumContainer' && document.documentElement.matches('.rrc-room, .rrc-room-boot')) return;
+
+    if (!persistedStateHidesAllCoreWindows) {
+      if (state.hidden === true) panel.classList.add('hidden');
+      else if (state.hidden === false) panel.classList.remove('hidden');
+
+      if (state.panelHidden === true) panel.classList.add('panel-hidden');
+      else if (state.panelHidden === false) panel.classList.remove('panel-hidden');
+    }
+    if (typeof state.active === 'boolean') panel.classList.toggle('active', state.active);
+
+    const z = parseInt(state.zIndex, 10);
+    if (Number.isFinite(z) && panel.id !== 'debug-controls' && !isPanelLocked(panel)) {
+      panel.style.zIndex = String(z);
+      topZ = Math.max(topZ, z);
+    }
+  }
+
+  function capturePanelState(panel) {
+    if (!panel || !panel.id || PERSIST_EXCLUDED_IDS.has(panel.id)) return null;
+    const z = parseInt(panel.style.zIndex, 10);
+    const intent = intents.get(panel.id);
+    const base = baseSizes.get(panel.id);
+    const state = {
+      left: null, top: null, width: null, height: null,
+      zIndex: Number.isFinite(z) ? z : null,
+      active: panel.classList.contains('active'),
+      hidden: panel.classList.contains('hidden'),
+      panelHidden: panel.classList.contains('panel-hidden')
+    };
+    if (intent) {
+      state.left = Math.round(intent.left);
+      state.top = Math.round(intent.top);
+      state.width = Math.round(intent.width);
+      state.height = Math.round(intent.height);
+      state.vw = Math.round(intent.vw);
+      state.vh = Math.round(intent.vh);
+      state.vt = Math.round(intent.vt);
+      state.user = !!intent.user;
+    }
+    if (base) {
+      state.baseW = base.w;
+      state.baseH = base.h;
+    }
+    return state;
+  }
+
+  function savePersistedWindowState() {
+    if (persistMuted) return;
+    const next = {};
+    windows.forEach((panel) => {
+      const state = capturePanelState(panel);
+      if (state) next[panel.id] = state;
+    });
+    try {
+      localStorage.setItem(PERSIST_STORAGE_KEY, JSON.stringify(next));
+    } catch (err) {}
+  }
+
+  function queuePersistWindowState() {
+    if (persistMuted) return;
+    if (persistTimer) clearTimeout(persistTimer);
+    persistTimer = setTimeout(() => {
+      persistTimer = null;
+      savePersistedWindowState();
+    }, 120);
+  }
+
+  function watchPanelPersistence(panel) {
+    if (!panel || !panel.id || PERSIST_EXCLUDED_IDS.has(panel.id)) return;
+    let wasShown = isShown(panel);
+    const observer = new MutationObserver(() => {
+      if (!persistMuted) {
+        adoptExternalGeometry(panel);
+        const shown = isShown(panel);
+        if (shown && !wasShown) {
+          // Let the app finish its own open logic first, then settle the window.
+          requestAnimationFrame(() => {
+            if (!isShown(panel)) return;
+            adoptExternalGeometry(panel);
+            if (!applyIntent(panel) || !(intents.get(panel.id) || {}).user) placeOnShow(panel);
+            const r = panel.getBoundingClientRect();
+            updateWindowScale(panel, r.width, r.height);
+          });
+        }
+        wasShown = shown;
+      }
+      queuePersistWindowState();
+    });
+    observer.observe(panel, {
+      attributes: true,
+      attributeFilter: ['class', 'style']
+    });
+  }
+
+  function appendResizeHandles(panel) {
+    if (panel.querySelector('[data-resize-dir]')) return;
+    HANDLE_DIRECTIONS.forEach((dir) => {
+      const handle = document.createElement('div');
+      handle.className = `notation-resize-handle notation-resize-handle-${dir}`;
+      handle.setAttribute('data-resize-dir', dir);
+      handle.title = 'Resize';
+      panel.appendChild(handle);
+    });
+  }
+
+  function appendDragZones(panel) {
+    if (panel.id !== 'notation-overlay' && panel.id !== 'notation-circular-overlay' && panel.id !== 'cesiumContainer') return;
+    const edges = panel.id === 'cesiumContainer' ? ['top'] : DRAG_ZONE_EDGES;
+    if (panel.id === 'cesiumContainer') {
+      panel.querySelectorAll('.floating-drag-zone-left, .floating-drag-zone-right, .floating-drag-zone-bottom').forEach((el) => el.remove());
+    }
+    edges.forEach((edge) => {
+      if (panel.querySelector(`.floating-drag-zone-${edge}`)) return;
+      const zone = document.createElement('div');
+      zone.className = `floating-drag-zone floating-drag-zone-${edge}`;
+      zone.setAttribute('data-drag-zone', 'true');
+      if (panel.id === 'cesiumContainer' && edge === 'top') {
+        zone.classList.add('map-window-drag-bar');
+        zone.setAttribute('title', 'Drag map window');
+        if (!zone.querySelector('.map-window-drag-label')) {
+          const label = document.createElement('span');
+          label.className = 'map-window-drag-label';
+          label.textContent = 'Drag Map Window';
+          zone.appendChild(label);
+        }
+        if (!zone.querySelector('.map-window-mode-btn')) {
+          const modeBtn = document.createElement('button');
+          modeBtn.type = 'button';
+          modeBtn.className = 'map-window-mode-btn';
+          modeBtn.textContent = 'Full';
+          modeBtn.setAttribute('data-floating-interactive', 'true');
+          modeBtn.setAttribute('data-no-drag', '1');
+          modeBtn.title = 'Switch map to fullscreen';
+          modeBtn.addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+          });
+          modeBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof window._toggleMapWindowMode === 'function') {
+              window._toggleMapWindowMode();
+            } else if (typeof window.toggleMapWindowMode === 'function') {
+              window.toggleMapWindowMode();
+            }
+          });
+          zone.appendChild(modeBtn);
+        }
+        if (typeof window._syncMapWindowDragBarUi === 'function') {
+          window._syncMapWindowDragBarUi();
+        }
+      }
+      panel.appendChild(zone);
+    });
+  }
+
+  function ensureFixedLayout(panel) {
+    const rect = panel.getBoundingClientRect();
+    if (rect.width < 20 || rect.height < 20) return false;
+
+    panel.style.position = 'fixed';
+    panel.style.left = rect.left + 'px';
+    panel.style.top = rect.top + 'px';
+    panel.style.width = rect.width + 'px';
+    panel.style.height = rect.height + 'px';
+    panel.style.right = 'auto';
+    panel.style.bottom = 'auto';
+    panel.style.margin = '0';
+    panel.style.transform = 'none';
+    panel.dataset.windowPinned = '1';
+    if (isLayoutManaged(panel) && !intents.has(panel.id)) {
+      const pinned = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+      lastApplied.set(panel.id, rectKey(pinned));
+      setIntent(panel, pinned, currentViewport(), false);
+    }
+    return true;
+  }
+
+  function clampPanel(panel, left, top, width, height) {
+    const protection = getTopUiProtection();
+    const maxLeft = Math.max(WINDOW_GAP, window.innerWidth - width - WINDOW_GAP);
+    let clampedLeft = Math.max(WINDOW_GAP, Math.min(left, maxLeft));
+    if (protection.sideMode && maxLeft >= protection.sideStripRight) {
+      clampedLeft = Math.max(protection.sideStripRight, clampedLeft);
+    }
+    const minTop = getMinTopForSpan(clampedLeft, width);
+    const maxTop = Math.max(minTop, window.innerHeight - height - WINDOW_GAP);
+    return {
+      left: clampedLeft,
+      top: Math.max(minTop, Math.min(top, maxTop))
+    };
+  }
+
+  function readBoolSetting(key, fallback) {
+    const raw = localStorage.getItem(key);
+    if (raw === null) return fallback;
+    return raw !== 'false';
+  }
+
+  function getSnapSettings() {
+    const thresholdRaw = parseFloat(localStorage.getItem('floatingSnapDistance'));
+    const threshold = Number.isFinite(thresholdRaw) ? thresholdRaw : 14;
+    return {
+      enabled: readBoolSetting('floatingSnapEnabled', true),
+      toWindows: readBoolSetting('floatingSnapToWindows', true),
+      toViewport: readBoolSetting('floatingSnapToViewport', true),
+      magneticDock: readBoolSetting('floatingMagneticDock', true),
+      threshold: Math.max(4, Math.min(64, threshold))
+    };
+  }
+
+  function isPanelVisibleForSnap(panel) {
+    if (!panel) return false;
+    const style = window.getComputedStyle(panel);
+    if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity || '1') <= 0) return false;
+    if (panel.classList.contains('hidden') || panel.classList.contains('panel-hidden')) return false;
+    const rect = panel.getBoundingClientRect();
+    return rect.width >= 20 && rect.height >= 20;
+  }
+
+  function overlapAmount(a1, a2, b1, b2) {
+    return Math.max(0, Math.min(a2, b2) - Math.max(a1, b1));
+  }
+
+  function collectSnapTargets(activePanel) {
+    return windows
+      .filter((panel) => panel !== activePanel && isPanelVisibleForSnap(panel))
+      .map((panel) => {
+        const rect = panel.getBoundingClientRect();
+        return {
+          left: rect.left,
+          top: rect.top,
+          right: rect.right,
+          bottom: rect.bottom,
+          width: rect.width,
+          height: rect.height,
+          centerX: rect.left + rect.width / 2,
+          centerY: rect.top + rect.height / 2
+        };
+      });
+  }
+
+  function snapDragPosition(panel, left, top, width, height) {
+    const snap = getSnapSettings();
+    if (!snap.enabled) return { left, top };
+
+    const originalLeft = left;
+    const originalTop = top;
+    let bestLeft = left;
+    let bestTop = top;
+    let bestLeftDist = snap.threshold + 1;
+    let bestTopDist = snap.threshold + 1;
+
+    const trySnapLeft = (candidate, threshold = snap.threshold) => {
+      const delta = Math.abs(originalLeft - candidate);
+      if (delta <= threshold && delta < bestLeftDist) {
+        bestLeftDist = delta;
+        bestLeft = candidate;
+      }
+    };
+
+    const trySnapTop = (candidate, threshold = snap.threshold) => {
+      const delta = Math.abs(originalTop - candidate);
+      if (delta <= threshold && delta < bestTopDist) {
+        bestTopDist = delta;
+        bestTop = candidate;
+      }
+    };
+
+    if (snap.toViewport) {
+      const protection = getTopUiProtection();
+      const minTop = getMinTopForSpan(originalLeft, width);
+      trySnapLeft(WINDOW_GAP);
+      trySnapLeft(window.innerWidth - WINDOW_GAP - width);
+      if (protection.sideMode) trySnapLeft(protection.sideStripRight);
+      trySnapTop(minTop);
+      trySnapTop(window.innerHeight - WINDOW_GAP - height);
+    }
+
+    if (snap.toWindows) {
+      const targets = collectSnapTargets(panel);
+      const movingLeft = originalLeft;
+      const movingRight = originalLeft + width;
+      const movingTop = originalTop;
+      const movingBottom = originalTop + height;
+
+      targets.forEach((target) => {
+        trySnapLeft(target.left);
+        trySnapLeft(target.right - width);
+        trySnapLeft(target.centerX - (width / 2));
+        trySnapTop(target.top);
+        trySnapTop(target.bottom - height);
+        trySnapTop(target.centerY - (height / 2));
+
+        if (snap.magneticDock) {
+          const overlapY = overlapAmount(movingTop, movingBottom, target.top, target.bottom);
+          if (overlapY >= 18) {
+            trySnapLeft(target.right + WINDOW_GAP);
+            trySnapLeft(target.left - WINDOW_GAP - width);
+          }
+
+          const overlapX = overlapAmount(movingLeft, movingRight, target.left, target.right);
+          if (overlapX >= 18) {
+            trySnapTop(target.bottom + WINDOW_GAP);
+            trySnapTop(target.top - WINDOW_GAP - height);
+          }
+        }
+      });
+    }
+
+    return {
+      left: bestLeftDist <= snap.threshold ? bestLeft : originalLeft,
+      top: bestTopDist <= snap.threshold ? bestTop : originalTop
+    };
+  }
+
+  function snapResizeRect(panel, rect, activeDir, minW, minH) {
+    const snap = getSnapSettings();
+    if (!snap.enabled || !activeDir) return rect;
+
+    const xLines = [];
+    const yLines = [];
+
+    if (snap.toViewport) {
+      const protection = getTopUiProtection();
+      xLines.push(WINDOW_GAP, window.innerWidth - WINDOW_GAP);
+      if (protection.sideMode) xLines.push(protection.sideStripRight);
+      yLines.push(getTopUiClearance(), window.innerHeight - WINDOW_GAP);
+    }
+
+    if (snap.toWindows) {
+      collectSnapTargets(panel).forEach((target) => {
+        xLines.push(target.left, target.right, target.centerX);
+        yLines.push(target.top, target.bottom, target.centerY);
+      });
+    }
+
+    const nearestLine = (value, lines) => {
+      let best = value;
+      let bestDist = snap.threshold + 1;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const delta = Math.abs(value - line);
+        if (delta <= snap.threshold && delta < bestDist) {
+          bestDist = delta;
+          best = line;
+        }
+      }
+      return best;
+    };
+
+    let left = rect.left;
+    let top = rect.top;
+    let width = rect.width;
+    let height = rect.height;
+    let right = left + width;
+    let bottom = top + height;
+
+    if (activeDir.includes('w')) {
+      const snappedLeft = nearestLine(left, xLines);
+      left = snappedLeft;
+      width = right - left;
+    }
+    if (activeDir.includes('e')) {
+      right = left + width;
+      const snappedRight = nearestLine(right, xLines);
+      right = snappedRight;
+      width = right - left;
+    }
+    if (activeDir.includes('n')) {
+      const snappedTop = nearestLine(top, yLines);
+      top = snappedTop;
+      height = bottom - top;
+    }
+    if (activeDir.includes('s')) {
+      bottom = top + height;
+      const snappedBottom = nearestLine(bottom, yLines);
+      bottom = snappedBottom;
+      height = bottom - top;
+    }
+
+    if (width < minW) {
+      if (activeDir.includes('w') && !activeDir.includes('e')) {
+        left = right - minW;
+      }
+      width = minW;
+    }
+    if (height < minH) {
+      if (activeDir.includes('n') && !activeDir.includes('s')) {
+        top = bottom - minH;
+      }
+      height = minH;
+    }
+
+    return { left, top, width, height };
+  }
+
+  function contentAwarePanelMinHeight(panel) {
+    if (!panel) return null;
+    if (panel.id !== 'auth-panel' && panel.id !== 'session-panel' && panel.id !== 'views-panel') return null;
+
+    const panelStyle = window.getComputedStyle(panel);
+    const paddingTop = parseFloat(panelStyle.paddingTop) || 0;
+    const paddingBottom = parseFloat(panelStyle.paddingBottom) || 0;
+    const borderTop = parseFloat(panelStyle.borderTopWidth) || 0;
+    const borderBottom = parseFloat(panelStyle.borderBottomWidth) || 0;
+
+    let contentHeight = paddingTop + paddingBottom + borderTop + borderBottom;
+    Array.from(panel.children).forEach((child) => {
+      if (!(child instanceof HTMLElement)) return;
+      if (child.hasAttribute('data-resize-dir') || child.hasAttribute('data-drag-zone')) return;
+      if (child.classList.contains('notation-resize-handle') || child.classList.contains('floating-drag-zone')) return;
+      const childStyle = window.getComputedStyle(child);
+      if (childStyle.display === 'none' || childStyle.visibility === 'hidden') return;
+      if (child.classList.contains('hidden')) return;
+      const marginTop = parseFloat(childStyle.marginTop) || 0;
+      const marginBottom = parseFloat(childStyle.marginBottom) || 0;
+      contentHeight += child.offsetHeight + marginTop + marginBottom;
+    });
+
+    const measuredMin = Math.max(96, Math.ceil(contentHeight + 2));
+    if (panel.id === 'auth-panel' || panel.id === 'session-panel') {
+      // Allow these panels to shrink further and use internal scrolling instead of forcing tall minimums.
+      const panelFloor = parseInt(panel.dataset.windowMinH, 10) || 96;
+      const softCap = panel.id === 'session-panel' ? 250 : 230;
+      return Math.max(panelFloor, Math.min(measuredMin, softCap));
+    }
+    return measuredMin;
+  }
+
+  function minSizeFor(panel) {
+    const style = window.getComputedStyle(panel);
+    const cssMinW = parseInt(style.minWidth, 10);
+    const cssMinH = parseInt(style.minHeight, 10);
+    const minW = parseInt(panel.dataset.windowMinW, 10) || (Number.isFinite(cssMinW) ? cssMinW : DEFAULT_MIN_W);
+    let minH = parseInt(panel.dataset.windowMinH, 10) || (Number.isFinite(cssMinH) ? cssMinH : DEFAULT_MIN_H);
+    const contentMinH = contentAwarePanelMinHeight(panel);
+    if (Number.isFinite(contentMinH)) {
+      // Auth/session panels should shrink to their current visible content without bottom dead space.
+      minH = contentMinH;
+    }
+    return { minW, minH };
+  }
+
+  function updateWindowScale(panel, width, height) {
+    if (!panel || width < 20 || height < 20) return;
+    if (panel.id === 'debug-controls') {
+      // Debug panel uses its own dedicated scale control (zoom-based in app.js).
+      // Keep floating-window auto scale neutral so resize handles remain aligned.
+      panel.style.setProperty('--window-scale', '1');
+      return;
+    }
+    if (panel.classList.contains('trigger-pad-window')) {
+      // Pads size their own playing surface from the window; their labels stay at one size.
+      panel.style.setProperty('--window-scale', '1');
+      return;
+    }
+    const base = ensureBaseSize(panel);
+    if (!base) return;
+    panel.dataset.baseWidth = String(base.w);
+    panel.dataset.baseHeight = String(base.h);
+    const baseW = parseFloat(panel.dataset.baseWidth) || width;
+    const minScale = Math.max(0.45, Math.min(1.4, parseFloat(localStorage.getItem('windowScaleMin')) || 0.72));
+    let scale;
+    if (panel.id === 'rhythm-panel') {
+      // Restore previous behavior for rhythms menu: width-driven scaling
+      scale = Math.max(minScale, Math.min(2.1, width / Math.max(1, baseW)));
+    } else if (panel.id === 'auth-panel' || panel.id === 'session-panel' || panel.id === 'views-panel') {
+      const baseH = parseFloat(panel.dataset.baseHeight) || height;
+      const widthRatio = width / Math.max(1, baseW);
+      const heightRatio = height / Math.max(1, baseH);
+      // Let auth/session/views shrink further while still staying readable.
+      const blendedRatio = Math.min(widthRatio * 1.08, heightRatio * 1.12);
+      const panelMinScale = Math.max(0.62, minScale * 0.82);
+      scale = Math.max(panelMinScale, Math.min(2.05, blendedRatio));
+    } else if (panel.id === 'stage-panel') {
+      const baseH = parseFloat(panel.dataset.baseHeight) || height;
+      const widthRatio = width / Math.max(1, baseW);
+      const heightRatio = height / Math.max(1, baseH);
+      // Stage feels best with uniform scaling so tokens/icons stay proportional.
+      const combinedRatio = Math.min(widthRatio, heightRatio);
+      scale = Math.max(minScale, Math.min(2.0, combinedRatio));
+    } else {
+      const baseH = parseFloat(panel.dataset.baseHeight) || height;
+      const widthRatio = width / Math.max(1, baseW);
+      const heightRatio = height / Math.max(1, baseH);
+      const combinedRatio = Math.sqrt(Math.max(0.01, widthRatio * heightRatio));
+      scale = Math.max(minScale, Math.min(2.1, combinedRatio));
+    }
+    panel.style.setProperty('--window-scale', scale.toFixed(3));
+    if (panel.id === 'history-box' && typeof window._fitHistoryText === 'function') {
+      window._fitHistoryText();
+    }
+    if (panel.id === 'info-banner' && typeof window._fitInfoText === 'function') {
+      window._fitInfoText();
+    }
+  }
+
+  function getPanelZ(panel) {
+    if (!panel) return FLOATING_Z_BASE;
+    const inlineZ = parseInt(panel.style.zIndex, 10);
+    if (Number.isFinite(inlineZ)) return inlineZ;
+    const computedZ = parseInt(window.getComputedStyle(panel).zIndex, 10);
+    return Number.isFinite(computedZ) ? computedZ : FLOATING_Z_BASE;
+  }
+
+  function refreshTopZ() {
+    let maxZ = FLOATING_Z_BASE;
+    windows.forEach((el) => {
+      if (!el || el.id === 'debug-controls') return;
+      maxZ = Math.max(maxZ, getPanelZ(el));
+    });
+    topZ = Math.max(topZ, maxZ);
+    return topZ;
+  }
+
+  function normalizeWindowZOrder() {
+    const ordered = windows
+      .filter((el) => el && el.id !== 'debug-controls')
+      .sort((a, b) => getPanelZ(a) - getPanelZ(b));
+    let z = FLOATING_Z_BASE;
+    ordered.forEach((el) => {
+      z += 1;
+      el.style.zIndex = String(z);
+    });
+    topZ = z;
+  }
+
+  function bringToFront(panel) {
+    if (!panel) return;
+    // In default full-screen map mode, globe interactions should never change
+    // window z-order. Only allow raising the map when it is explicitly windowed.
+    if (panel.id === 'cesiumContainer' && isPanelLocked(panel)) {
+      return;
+    }
+    if (panel && panel.id === 'debug-controls') {
+      panel.style.zIndex = '5200';
+      return;
+    }
+    refreshTopZ();
+    if (topZ >= FLOATING_Z_CEILING) {
+      normalizeWindowZOrder();
+    }
+    topZ = Math.min(refreshTopZ() + 1, FLOATING_Z_CEILING);
+    panel.style.zIndex = String(topZ);
+    const bottomContainer = panel.closest('#bottom-ui-container');
+    if (bottomContainer) {
+      bottomContainer.style.zIndex = String(topZ);
+    }
+  }
+
+  window._bringFloatingWindowToFront = (panelOrId) => {
+    const panel = typeof panelOrId === 'string'
+      ? document.getElementById(panelOrId)
+      : panelOrId;
+    if (!panel) return;
+    bringToFront(panel);
+  };
+  window._setFloatingWindowMultiselectMode = (enabled) => {
+    setMultiselectMode(enabled);
+  };
+  window._isFloatingWindowMultiselectMode = () => multiselectMode;
+
+  function notifyCesiumLayout() {
+    if (typeof window._onCesiumContainerLayoutChange === 'function') {
+      window._onCesiumContainerLayoutChange();
+    }
+  }
+
+  window._updateFloatingWindowScale = (panelOrId) => {
+    const panel = typeof panelOrId === 'string'
+      ? document.getElementById(panelOrId)
+      : panelOrId;
+    if (!panel) return;
+    const rect = panel.getBoundingClientRect();
+    updateWindowScale(panel, rect.width, rect.height);
+  };
+  window._refreshFloatingWindowScales = () => {
+    windows.forEach((panel) => {
+      const rect = panel.getBoundingClientRect();
+      updateWindowScale(panel, rect.width, rect.height);
+    });
+  };
+
+  // Global focus-on-interaction: raise the nearest floating window first,
+  // even when child controls stop propagation.
+  const raiseFromEventTarget = (eventTarget) => {
+    if (!(eventTarget instanceof Element)) return;
+    const panel = eventTarget.closest('[data-floating-window="true"]');
+    if (!panel) return;
+    bringToFront(panel);
+  };
+  document.addEventListener('pointerdown', (e) => {
+    raiseFromEventTarget(e.target);
+  }, true);
+  document.addEventListener('mousedown', (e) => {
+    raiseFromEventTarget(e.target);
+  }, true);
+  document.addEventListener('touchstart', (e) => {
+    const firstTouch = e.touches && e.touches[0];
+    const target = firstTouch && firstTouch.target ? firstTouch.target : e.target;
+    raiseFromEventTarget(target);
+  }, true);
+
+  document.addEventListener('pointerdown', (e) => {
+    if (!multiselectMode) return;
+    if (e.pointerType !== 'touch' && e.button !== 0) return;
+    if (!(e.target instanceof Element)) return;
+    const inFloating = e.target.closest('[data-floating-window="true"]');
+    if (inFloating) return;
+    const inTopUi = e.target.closest('#top-panel-toggles, #nav-toolbar, #debug-controls');
+    if (inTopUi) return;
+    selectionPointerId = e.pointerId;
+    selectionStartPoint = { x: e.clientX, y: e.clientY };
+    selectionShiftAppend = !!e.shiftKey;
+    if (!selectionShiftAppend) clearSelectedPanels();
+    const box = ensureSelectionBox();
+    box.style.left = Math.round(e.clientX) + 'px';
+    box.style.top = Math.round(e.clientY) + 'px';
+    box.style.width = '0px';
+    box.style.height = '0px';
+  }, true);
+  document.addEventListener('pointermove', (e) => {
+    if (!multiselectMode) return;
+    if (!selectionStartPoint || selectionPointerId !== e.pointerId) return;
+    updateMarqueeSelection(e.clientX, e.clientY);
+  }, true);
+  document.addEventListener('pointerup', (e) => {
+    if (selectionPointerId !== e.pointerId) return;
+    stopMarqueeSelection();
+  }, true);
+  document.addEventListener('pointercancel', (e) => {
+    if (selectionPointerId !== e.pointerId) return;
+    stopMarqueeSelection();
+  }, true);
+
+  // Safety fallback: cultural context can receive interactions through nested scroll/text elements.
+  // Force fronting on any interaction with this panel or its contents.
+  const bindAlwaysRaise = (panel) => {
+    if (!panel) return;
+    const raise = () => bringToFront(panel);
+    panel.addEventListener('pointerdown', raise, true);
+    panel.addEventListener('mousedown', raise, true);
+    panel.addEventListener('touchstart', raise, { capture: true, passive: true });
+    panel.addEventListener('wheel', raise, { capture: true, passive: true });
+    panel.addEventListener('focusin', raise, true);
+  };
+  bindAlwaysRaise(document.getElementById('history-box'));
+  bindAlwaysRaise(document.getElementById('image-window'));
+  bindAlwaysRaise(document.getElementById('info-banner'));
+
+  persistMuted = true;
+  persistedLayoutViewport = inferLayoutViewport(persistedWindowState);
+  windows.forEach((panel) => { if (panel.id) declaredMinFor(panel); });
+  windows.forEach((panel) => {
+    panel.classList.add('floating-window');
+    appendResizeHandles(panel);
+    appendDragZones(panel);
+    if (!skipPersistedWindowRestore) {
+      applyPersistedWindowState(panel, persistedWindowState[panel.id]);
+    }
+    watchPanelPersistence(panel);
+
+    let mode = null;
+    let pointerId = null;
+    let activeDir = '';
+    let startX = 0;
+    let startY = 0;
+    let startLeft = 0;
+    let startTop = 0;
+    let startW = 0;
+    let startH = 0;
+    let hasMoved = false;
+    let groupDragMembers = null;
+    let holdTimer = null;
+    let holdTriggered = false;
+    let holdStartX = 0;
+    let holdStartY = 0;
+    const HOLD_HIDE_MS = 520;
+    const HOLD_CANCEL_MOVE_PX = 7;
+
+    const clearHold = () => {
+      if (holdTimer) {
+        clearTimeout(holdTimer);
+        holdTimer = null;
+      }
+    };
+
+    const panelHideToggleId = (panelEl) => {
+      if (!panelEl || !panelEl.id) return '';
+      const byId = {
+        'rhythm-panel': 'rhythm-toggle',
+        'info-banner': 'info-toggle',
+        'history-box': 'history-toggle',
+        'image-window': 'media-toggle',
+        'notation-overlay': 'notation-toggle',
+        'notation-circular-overlay': 'circular-toggle',
+        'nav-toolbar': 'nav-toggle',
+        'debug-controls': 'debug-toggle',
+        'views-panel': 'views-toggle',
+        'auth-panel': 'auth-toggle',
+        'session-panel': 'session-toggle',
+        'stage-panel': 'stage-toggle',
+        'circular-panel': 'circular-toggle'
+      };
+      if (panelEl.classList.contains('trigger-pad-window')) {
+        const padIndex = panelEl.dataset.padIndex || '';
+        return `trigger-pad-window-toggle-${padIndex}`;
+      }
+      return byId[panelEl.id] || '';
+    };
+
+    const hidePanelFromHold = (panelEl) => {
+      const toggleId = panelHideToggleId(panelEl);
+      if (toggleId) {
+        const btn = document.getElementById(toggleId);
+        if (btn) {
+          btn.click();
+          return;
+        }
+      }
+      panelEl.classList.add('panel-hidden');
+      if (typeof window._syncTopPanelToggleStates === 'function') {
+        window._syncTopPanelToggleStates();
+      }
+      queuePersistWindowState();
+    };
+
+    panel.addEventListener('pointerdown', (e) => {
+      if (e.defaultPrevented) return;
+      if (e.pointerType !== 'touch' && e.button !== 0) return;
+      if (window.getComputedStyle(panel).display === 'none') return;
+      if (!(e.target instanceof Element)) return;
+      if (isPanelLocked(panel)) {
+        bringToFront(panel);
+        return;
+      }
+
+      const handle = e.target.closest('[data-resize-dir]');
+      const dragZone = e.target.closest('[data-drag-zone="true"]');
+      const isInteractive = !!(!handle && !dragZone && e.target.closest(INTERACTIVE_SELECTOR));
+
+      if (multiselectMode && !handle && !dragZone && isSelectablePanel(panel)) {
+        if (e.shiftKey) {
+          if (selectedPanels.has(panel)) selectedPanels.delete(panel);
+          else selectedPanels.add(panel);
+          syncSelectedPanelClasses();
+        } else if (!selectedPanels.has(panel)) {
+          clearSelectedPanels();
+          selectedPanels.add(panel);
+          syncSelectedPanelClasses();
+        }
+      }
+
+      if (isInteractive) {
+        bringToFront(panel);
+        return;
+      }
+
+      if (!ensureFixedLayout(panel)) return;
+      bringToFront(panel);
+
+      const rect = panel.getBoundingClientRect();
+      const { minW, minH } = minSizeFor(panel);
+
+      mode = handle ? 'resize' : 'drag';
+      pointerId = e.pointerId;
+      activeDir = handle ? handle.getAttribute('data-resize-dir') : '';
+      startX = e.clientX;
+      startY = e.clientY;
+      startLeft = rect.left;
+      startTop = rect.top;
+      startW = Math.max(minW, rect.width);
+      startH = Math.max(minH, rect.height);
+      hasMoved = false;
+      holdTriggered = false;
+      clearHold();
+      groupDragMembers = null;
+      if (mode === 'drag') {
+        holdStartX = e.clientX;
+        holdStartY = e.clientY;
+        holdTimer = setTimeout(() => {
+          holdTimer = null;
+          if (!mode || pointerId !== e.pointerId || hasMoved || mode !== 'drag') return;
+          holdTriggered = true;
+          panel.classList.remove('dragging', 'resizing');
+          groupDragMembers = null;
+          mode = null;
+          pointerId = null;
+          activeDir = '';
+          hasMoved = false;
+          try { panel.releasePointerCapture(e.pointerId); } catch (err) {}
+          hidePanelFromHold(panel);
+        }, HOLD_HIDE_MS);
+      }
+      if (mode === 'drag' && multiselectMode && selectedPanels.has(panel) && selectedPanels.size > 1) {
+        groupDragMembers = Array.from(selectedPanels)
+          .filter((el) => el && el !== panel && isSelectablePanel(el))
+          .map((el) => {
+            ensureFixedLayout(el);
+            const r = el.getBoundingClientRect();
+            return {
+              panel: el,
+              startLeft: r.left,
+              startTop: r.top,
+              width: r.width,
+              height: r.height
+            };
+          });
+      }
+
+      try { panel.setPointerCapture(pointerId); } catch (err) {}
+    });
+
+    panel.addEventListener('pointermove', (e) => {
+      if (!mode || e.pointerId !== pointerId) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (holdTimer) {
+        const mdx = e.clientX - holdStartX;
+        const mdy = e.clientY - holdStartY;
+        if (Math.hypot(mdx, mdy) >= HOLD_CANCEL_MOVE_PX) clearHold();
+      }
+      if (!hasMoved) {
+        if (Math.hypot(dx, dy) < 4) return;
+        clearHold();
+        hasMoved = true;
+        panel.classList.add(mode === 'drag' ? 'dragging' : 'resizing');
+      }
+
+      e.preventDefault();
+      const { minW, minH } = minSizeFor(panel);
+
+      if (mode === 'drag') {
+        const snapped = snapDragPosition(panel, startLeft + dx, startTop + dy, startW, startH);
+        const moved = clampPanel(panel, snapped.left, snapped.top, startW, startH);
+        panel.style.left = Math.round(moved.left) + 'px';
+        panel.style.top = Math.round(moved.top) + 'px';
+        if (groupDragMembers && groupDragMembers.length > 0) {
+          const offsetX = moved.left - startLeft;
+          const offsetY = moved.top - startTop;
+          groupDragMembers.forEach((entry) => {
+            if (!entry || !entry.panel) return;
+            const nextLeft = entry.startLeft + offsetX;
+            const nextTop = entry.startTop + offsetY;
+            const clamped = clampPanel(entry.panel, nextLeft, nextTop, entry.width, entry.height);
+            entry.panel.style.left = Math.round(clamped.left) + 'px';
+            entry.panel.style.top = Math.round(clamped.top) + 'px';
+          });
+        }
+        if (panel.id === 'cesiumContainer') notifyCesiumLayout();
+        return;
+      }
+
+      let newW = startW;
+      let newH = startH;
+      let newLeft = startLeft;
+      let newTop = startTop;
+
+      const resizeRight = activeDir.includes('e');
+      const resizeLeft = activeDir.includes('w');
+      const resizeBottom = activeDir.includes('s');
+      const resizeTop = activeDir.includes('n');
+      const aspect = parseFloat(panel.dataset.windowAspect || '');
+      const keepAspect = Number.isFinite(aspect) && aspect > 0.2;
+
+      if (resizeRight) newW = startW + dx;
+      if (resizeLeft) {
+        newW = startW - dx;
+        newLeft = startLeft + dx;
+      }
+      if (resizeBottom) newH = startH + dy;
+      if (resizeTop) {
+        newH = startH - dy;
+        newTop = startTop + dy;
+      }
+
+      if (keepAspect) {
+        const widthIntent = (resizeLeft || resizeRight) && !(resizeTop || resizeBottom)
+          ? true
+          : (resizeTop || resizeBottom) && !(resizeLeft || resizeRight)
+            ? false
+            : Math.abs(dx) >= Math.abs(dy);
+        if (widthIntent) {
+          newH = newW / aspect;
+        } else {
+          newW = newH * aspect;
+        }
+
+        if (resizeLeft && !resizeRight) {
+          newLeft = startLeft + (startW - newW);
+        } else if (!resizeLeft && !resizeRight) {
+          newLeft = startLeft + (startW - newW) * 0.5;
+        }
+        if (resizeTop && !resizeBottom) {
+          newTop = startTop + (startH - newH);
+        } else if (!resizeTop && !resizeBottom) {
+          newTop = startTop + (startH - newH) * 0.5;
+        }
+      }
+
+      if (newW < minW) {
+        if (resizeLeft) newLeft -= (minW - newW);
+        newW = minW;
+      }
+      if (newH < minH) {
+        if (resizeTop) newTop -= (minH - newH);
+        newH = minH;
+      }
+
+      const maxW = window.innerWidth - EDGE_GAP * 2;
+      const maxH = Math.max(minH, window.innerHeight - getMinTopForSpan(newLeft, newW) - EDGE_GAP);
+      if (keepAspect) {
+        newW = Math.min(newW, maxW);
+        newH = newW / aspect;
+        if (newH > maxH) {
+          newH = maxH;
+          newW = newH * aspect;
+        }
+      } else {
+        newW = Math.min(newW, maxW);
+        newH = Math.min(newH, maxH);
+      }
+
+      const snappedRect = snapResizeRect(panel, {
+        left: newLeft,
+        top: newTop,
+        width: newW,
+        height: newH
+      }, activeDir, minW, minH);
+      newLeft = snappedRect.left;
+      newTop = snappedRect.top;
+      newW = snappedRect.width;
+      newH = snappedRect.height;
+
+      if (newW < minW) {
+        if (resizeLeft) newLeft -= (minW - newW);
+        newW = minW;
+      }
+      if (newH < minH) {
+        if (resizeTop) newTop -= (minH - newH);
+        newH = minH;
+      }
+      if (keepAspect) {
+        newW = Math.min(newW, maxW);
+        newH = newW / aspect;
+        if (newH > maxH) {
+          newH = maxH;
+          newW = newH * aspect;
+        }
+        if (newW < minW) {
+          newW = minW;
+          newH = newW / aspect;
+        }
+        if (newH < minH) {
+          newH = minH;
+          newW = newH * aspect;
+        }
+        if (resizeLeft && !resizeRight) {
+          newLeft = startLeft + (startW - newW);
+        } else if (!resizeLeft && !resizeRight) {
+          newLeft = startLeft + (startW - newW) * 0.5;
+        }
+        if (resizeTop && !resizeBottom) {
+          newTop = startTop + (startH - newH);
+        } else if (!resizeTop && !resizeBottom) {
+          newTop = startTop + (startH - newH) * 0.5;
+        }
+      } else {
+        newW = Math.min(newW, maxW);
+        newH = Math.min(newH, maxH);
+      }
+
+      const moved = clampPanel(panel, newLeft, newTop, newW, newH);
+      panel.style.width = Math.round(newW) + 'px';
+      panel.style.height = Math.round(newH) + 'px';
+      panel.style.left = Math.round(moved.left) + 'px';
+      panel.style.top = Math.round(moved.top) + 'px';
+      updateWindowScale(panel, newW, newH);
+      if (panel.id === 'cesiumContainer') notifyCesiumLayout();
+    }, { passive: false });
+
+    const finish = () => {
+      clearHold();
+      if (holdTriggered) {
+        holdTriggered = false;
+        return;
+      }
+      if (!mode) return;
+      panel.classList.remove('dragging', 'resizing');
+      if (panel.id === 'cesiumContainer') notifyCesiumLayout();
+      const movedPanels = Array.isArray(groupDragMembers) && groupDragMembers.length
+        ? groupDragMembers.map((m) => m && (m.panel || m.el || m)).filter((el) => el instanceof HTMLElement)
+        : [];
+      if (!movedPanels.includes(panel)) movedPanels.push(panel);
+      movedPanels.forEach((el) => {
+        const rect = styleRect(el);
+        if (rect && isLayoutManaged(el)) {
+          lastApplied.set(el.id, rectKey(rect));
+          setIntent(el, rect, currentViewport(), true);
+        }
+      });
+      queuePersistWindowState();
+      mode = null;
+      pointerId = null;
+      activeDir = '';
+      groupDragMembers = null;
+      hasMoved = false;
+    };
+
+    panel.addEventListener('pointerup', finish);
+    panel.addEventListener('pointercancel', finish);
+    panel.addEventListener('lostpointercapture', finish);
+
+    const initialRect = panel.getBoundingClientRect();
+    updateWindowScale(panel, initialRect.width, initialRect.height);
+  });
+  persistMuted = false;
+  const isWindowVisible = (panel) => {
+    if (!panel) return false;
+    if (panel.classList.contains('hidden') || panel.classList.contains('panel-hidden')) return false;
+    const style = window.getComputedStyle(panel);
+    return style.display !== 'none' && style.visibility !== 'hidden';
+  };
+  const hasVisibleCoreWindow = CORE_WINDOW_IDS.some((id) => isWindowVisible(document.getElementById(id)));
+  if (!hasVisibleCoreWindow) {
+    CORE_WINDOW_IDS.forEach((id) => {
+      const panel = document.getElementById(id);
+      if (!panel) return;
+      panel.classList.remove('hidden', 'panel-hidden');
+      bringToFront(panel);
+    });
+  }
+  queuePersistWindowState();
+
+  window.addEventListener('beforeunload', savePersistedWindowState);
+  window.addEventListener('pagehide', savePersistedWindowState);
+  // Refit every window whenever the screen or the top bar changes size.
+  window.addEventListener('resize', queueReflow);
+  window.addEventListener('orientationchange', queueReflow);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', queueReflow);
+  const topUiEl = document.getElementById('top-panel-toggles');
+  if (topUiEl && typeof ResizeObserver === 'function') {
+    let lastTopClearance = getTopUiClearance();
+    new ResizeObserver(() => {
+      const next = getTopUiClearance();
+      if (Math.abs(next - lastTopClearance) < 1) return;
+      lastTopClearance = next;
+      queueReflow();
+    }).observe(topUiEl);
+  }
+
+  window._reflowFloatingWindows = reflowAllWindows;
+  window._captureFloatingWindowLayout = () => {
+    const out = {};
+    windows.forEach((panel) => {
+      const state = capturePanelState(panel);
+      if (state && state.width !== null) out[panel.id] = state;
+    });
+    return out;
+  };
+  // Apply saved geometry for one window. sourceViewport: { w, h } of the screen the layout was made on.
+  window._setFloatingWindowIntent = (panelOrId, state, sourceViewport) => {
+    const panel = typeof panelOrId === 'string' ? document.getElementById(panelOrId) : panelOrId;
+    if (!panel || !state || !isLayoutManaged(panel)) return false;
+    const fallback = sourceViewport && Number.isFinite(sourceViewport.w) && Number.isFinite(sourceViewport.h)
+      ? { vw: sourceViewport.w, vh: sourceViewport.h, vt: getTopUiClearance() }
+      : (sourceViewport && Number.isFinite(sourceViewport.vw) ? sourceViewport : currentViewport());
+    if (!intentFromState(panel, state, fallback)) return false;
+    return applyIntent(panel);
+  };
+  window._inferFloatingLayoutViewport = inferLayoutViewport;
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initFloatingWindows, { once: true });
+  } else {
+    initFloatingWindows();
+  }
+})();
+</script>
+
+<style>
+  /* Applied only while playback is running AND the screen cannot keep up (see script below).
+     Frosted windows over moving content force a full re-blur on every frame. */
+  html.rrc-perf-lite *, html.rrc-perf-lite *::before, html.rrc-perf-lite *::after {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  /* Keep windows readable without the blur: a light dark wash under their content. */
+  html.rrc-perf-lite .floating-window:not(#cesiumContainer) { box-shadow: inset 0 0 0 4000px rgba(6, 6, 12, 0.62); }
+</style>
+<script>
+// Frame-rate guard for playback. If frames stay slow while a rhythm is playing, the frost blur
+// is paused until playback stops, so playheads and timelines stay smooth. Machines that keep up
+// never see a change. Can be turned off in Settings > Layout & Sizing.
+(function() {
+  const KEY = 'rrcAutoPerfLite';
+  const SLOW_FRAME_MS = 30;      // below ~33 fps
+  const SLOW_FOR_MS = 1200;
+  const root = document.documentElement;
+  let enabled = localStorage.getItem(KEY) !== 'false';
+  let lastStepAt = 0;
+  let raf = 0;
+  let lastFrame = 0;
+  let slowSince = 0;
+  let neededThisVisit = false;
+  const playing = () => (performance.now() - lastStepAt) < 700;
+  const setLite = (on) => root.classList.toggle('rrc-perf-lite', !!on);
+  const frame = (t) => {
+    raf = 0;
+    if (!enabled || !playing()) { setLite(false); lastFrame = 0; slowSince = 0; return; }
+    if (lastFrame) {
+      const dt = t - lastFrame;
+      if (dt > SLOW_FRAME_MS && dt < 1000) {
+        if (!slowSince) slowSince = t;
+        if (t - slowSince > SLOW_FOR_MS && !root.classList.contains('rrc-perf-lite')) { neededThisVisit = true; setLite(true); }
+      } else if (dt <= SLOW_FRAME_MS * 0.7) {
+        slowSince = 0;
+      }
+    }
+    lastFrame = t;
+    raf = requestAnimationFrame(frame);
+  };
+  window.addEventListener('rrc:notation-step-scheduled', () => {
+    lastStepAt = performance.now();
+    if (!enabled) return;
+    // Once this machine has needed it, apply it from the first beat of later playbacks.
+    if (neededThisVisit) setLite(true);
+    if (!raf) raf = requestAnimationFrame(frame);
+  });
+  document.addEventListener('DOMContentLoaded', () => {
+    const toggle = document.getElementById('autoPerfLiteToggle');
+    if (!toggle) return;
+    toggle.checked = enabled;
+    toggle.addEventListener('change', () => {
+      enabled = toggle.checked;
+      localStorage.setItem(KEY, enabled ? 'true' : 'false');
+      if (!enabled) { neededThisVisit = false; setLite(false); }
+    });
+  });
+})();
+</script>
+
+<!-- Navigation Toolbar -->
+<div id="nav-toolbar" class="hidden panel-hidden" data-floating-window="true" data-window-min-w="44" data-window-min-h="220">
+    <button class="nav-btn" id="nav-orbit" title="Pivot"><span class="nav-btn-label">Pivot (Drag)</span><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><path d="M12 6c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm0 10c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z"/><circle cx="12" cy="12" r="2"/></svg></button>
+    <button class="nav-btn" id="nav-pan" title="Pan"><span class="nav-btn-label">Pan (Drag)</span><svg viewBox="0 0 24 24"><path d="M10 9h4V6h3l-5-5-5 5h3v3zm-1 1H6V7l-5 5 5 5v-3h3v-4zm14 2l-5-5v3h-3v4h3v3l5-5zm-9 3h-4v3H7l5 5 5-5h-3v-3z"/></svg></button>
+    <div class="nav-divider"></div>
+    <button class="nav-btn" id="nav-zoom-in" title="Zoom In"><span class="nav-btn-label">Zoom In</span><svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg></button>
+    <button class="nav-btn" id="nav-zoom-out" title="Zoom Out"><span class="nav-btn-label">Zoom Out</span><svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14v2z"/></svg></button>
+    <div class="nav-divider"></div>
+    <button class="nav-btn" id="nav-reset" title="Reset View"><span class="nav-btn-label">Reset View</span><svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></button>
+    <button class="nav-btn" id="nav-north" title="Face North"><span class="nav-btn-label">Face North</span><svg viewBox="0 0 24 24"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg></button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/cesium@1.137/Build/Cesium/Cesium.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="tokens.js"></script>
+<script src="app.js?v=timing-v30"></script>
+<script type="module" src="room/room.js?v=timing-v41" onerror="document.documentElement.classList.remove('rrc-room-boot', 'rrc-booting')"></script>
+</body>
+</html>

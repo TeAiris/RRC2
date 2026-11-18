@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>11x17 PDF Splitter</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #0b0b0b;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .panel {
+            background: #141414;
+            padding: 24px;
+            border-radius: 12px;
+            width: 360px;
+            box-shadow: 0 10px 40px rgba(0,0,0,.6);
+        }
+
+        h1 {
+            margin-top: 0;
+            font-size: 18px;
+            text-align: center;
+        }
+
+        input, button {
+            width: 100%;
+            margin-top: 12px;
+            padding: 10px;
+            font-size: 14px;
+            border-radius: 6px;
+            border: none;
+        }
+
+        input {
+            background: #222;
+            color: #fff;
+        }
+
+        button {
+            background: #1e88e5;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            background: #555;
+        }
+
+        .status {
+            margin-top: 12px;
+            font-size: 13px;
+            text-align: center;
+            color: #aaa;
+        }
+    </style>
+</head>
+
+<body>
+<div class="panel">
+    <h1>11×17 PDF → Individual Pages</h1>
+    <input type="file" id="pdfInput" accept="application/pdf" />
+    <button id="splitBtn" disabled>Split & Export</button>
+    <div class="status" id="status">Upload an 11×17 booklet PDF</div>
+</div>
+
+<!-- PDF.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+    const input = document.getElementById("pdfInput");
+    const btn = document.getElementById("splitBtn");
+    const status = document.getElementById("status");
+
+    let pdfFile;
+
+    input.addEventListener("change", e => {
+        pdfFile = e.target.files[0];
+        btn.disabled = !pdfFile;
+    });
+
+    btn.addEventListener("click", async () => {
+        status.textContent = "Processing PDF...";
+        btn.disabled = true;
+
+        const arrayBuffer = await pdfFile.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+
+            // High-res render
+            const scale = 3;
+            const viewport = page.getViewport({ scale });
+
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+
+            await page.render({ canvasContext: ctx, viewport }).promise;
+
+            const halfWidth = canvas.width / 2;
+
+            exportHalf(canvas, 0, halfWidth, i, "left");
+            exportHalf(canvas, halfWidth, halfWidth, i, "right");
+        }
+
+        status.textContent = "Done! Images downloaded.";
+        btn.disabled = false;
+    });
+
+    function exportHalf(sourceCanvas, x, w, pageNum, label) {
+        const out = document.createElement("canvas");
+        out.width = w;
+        out.height = sourceCanvas.height;
+
+        const ctx = out.getContext("2d");
+        ctx.drawImage(
+            sourceCanvas,
+            x, 0, w, sourceCanvas.height,
+            0, 0, w, sourceCanvas.height
+        );
+
+        const link = document.createElement("a");
+        link.download = `page_${String(pageNum).padStart(2,"0")}_${label}.png`;
+        link.href = out.toDataURL("image/png");
+        link.click();
+    }
+</script>
+</body>
+</html>

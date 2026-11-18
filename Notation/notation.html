@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rhythm Notation Editor</title>
+    <link rel="stylesheet" href="notation-styles.css?v=2026-02-12-mobile-v7">
+</head>
+<body>
+<!-- Debug Panel -->
+<div class="debug-panel" id="debugPanel">
+    <div class="debug-panel-header">
+        <h3>⚙ Debug Settings</h3>
+        <button class="debug-close-btn" id="debugCloseBtn" onclick="toggleDebugPanel()" title="Close Settings">✕</button>
+    </div>
+
+    <div class="debug-section">
+        <div class="debug-section-title">Playhead Visual</div>
+
+        <div class="debug-row">
+            <label>Glow Intensity:</label>
+            <input type="range" id="playheadGlow" min="0" max="1" step="0.1" value="0.5">
+            <span class="debug-value" id="playheadGlowValue">0.5</span>
+        </div>
+
+        <div class="debug-row">
+            <label>Border Width:</label>
+            <input type="range" id="playheadBorder" min="0" max="4" step="0.5" value="2">
+            <span class="debug-value" id="playheadBorderValue">2px</span>
+        </div>
+
+        <div class="debug-row">
+            <label>Pointer Size:</label>
+            <input type="range" id="playheadPointer" min="0" max="10" step="1" value="6">
+            <span class="debug-value" id="playheadPointerValue">6px</span>
+        </div>
+
+        <div class="debug-row">
+            <label>Show Pointer:</label>
+            <input type="checkbox" id="showPointer" checked>
+        </div>
+
+        <div class="debug-row">
+            <label>Show Glow:</label>
+            <input type="checkbox" id="showGlow" checked>
+        </div>
+
+        <div class="debug-row">
+            <label>Box Growth:</label>
+            <input type="range" id="boxGrowth" min="1" max="1.5" step="0.05" value="1.15">
+            <span class="debug-value" id="boxGrowthValue">1.15</span>
+        </div>
+
+        <div class="debug-row">
+            <label>Keep Size:</label>
+            <input type="checkbox" id="keepSize">
+        </div>
+
+        <div class="debug-row">
+            <label>Separation:</label>
+            <input type="range" id="playheadSeparation" min="0" max="30" step="1" value="12">
+            <span class="debug-value" id="playheadSeparationValue">12px</span>
+        </div>
+    </div>
+
+    <div class="debug-section">
+        <div class="debug-section-title">Swing</div>
+        <div class="debug-row">
+            <label>Factor:</label>
+            <input type="range" id="swingFactor" min="0" max="100" step="5" value="100">
+            <span class="debug-value" id="swingFactorValue">100</span>
+        </div>
+    </div>
+
+    <div class="debug-section">
+        <div class="debug-section-title">Grid</div>
+
+        <div class="debug-row">
+            <label>Box Size:</label>
+            <input type="range" id="boxSize" min="24" max="60" step="2" value="40">
+            <span class="debug-value" id="boxSizeValue">40px</span>
+        </div>
+
+        <div class="debug-row">
+            <label>Group Gap:</label>
+            <input type="range" id="groupGap" min="0" max="40" step="1" value="8">
+            <span class="debug-value" id="groupGapValue">8px</span>
+        </div>
+
+        <div class="debug-row">
+            <label>Box Gap:</label>
+            <input type="range" id="boxGap" min="0" max="10" step="1" value="2">
+            <span class="debug-value" id="boxGapValue">2px</span>
+        </div>
+        <div class="debug-row">
+            <label>Row Gap:</label>
+            <input type="range" id="rowGap" min="-40" max="20" step="1" value="8">
+            <span class="debug-value" id="rowGapValue">8px</span>
+        </div>
+
+        <div class="debug-row">
+            <label>Info Width:</label>
+            <input type="range" id="instrumentInfoWidth" min="120" max="250" step="5" value="180">
+            <span class="debug-value" id="instrumentInfoWidthValue">180px</span>
+        </div>
+
+        <div class="debug-row">
+            <label>Name Width:</label>
+            <input type="range" id="instrumentNameWidth" min="40" max="120" step="5" value="80">
+            <span class="debug-value" id="instrumentNameWidthValue">80px</span>
+        </div>
+
+        <div class="debug-row">
+            <label>Grid Scale:</label>
+            <input type="range" id="gridScale" min="0.5" max="2.0" step="0.1" value="1.0">
+            <span class="debug-value" id="gridScaleValue">1.0x</span>
+        </div>
+        <div class="debug-row">
+            <label>Wrap Rows:</label>
+            <input type="checkbox" id="wrapNotationRows" checked>
+        </div>
+        <div class="debug-row">
+            <label>Wrap After Beats:</label>
+            <input type="range" id="wrapAfterBeats" min="2" max="16" step="1" value="5">
+            <span class="debug-value" id="wrapAfterBeatsValue">5</span>
+        </div>
+
+        <div class="debug-row">
+            <label>Hold Silence:</label>
+            <input type="range" id="holdToSilenceMs" min="120" max="1200" step="10" value="420">
+            <span class="debug-value" id="holdToSilenceMsValue">420ms</span>
+        </div>
+
+        <div class="debug-row">
+            <label>Cycle Tap Window:</label>
+            <input type="range" id="cycleTapWindowMs" min="120" max="1200" step="10" value="500">
+            <span class="debug-value" id="cycleTapWindowMsValue">500ms</span>
+        </div>
+
+    </div>
+
+    <div class="debug-section">
+        <div class="debug-section-title">Audio</div>
+
+        <div class="debug-row">
+            <label>Reverb:</label>
+            <input type="range" id="reverbAmount" min="0" max="1" step="0.05" value="0.1">
+            <span class="debug-value" id="reverbAmountValue">0.1</span>
+        </div>
+    </div>
+
+    <div class="debug-section">
+        <div class="debug-section-title">Title</div>
+
+        <div class="debug-row">
+            <label for="titleFontSize">Title Font Size</label>
+            <input type="range" id="titleFontSize" min="12" max="48" step="1" value="24">
+            <span id="titleFontSizeValue">24px</span>
+        </div>
+        <div class="debug-row">
+            <label for="titleVisible">Show Title</label>
+            <input type="checkbox" id="titleVisible" checked>
+        </div>
+        <div class="debug-row">
+            <label for="dialSyncOffset">Dial Sync Offset</label>
+            <input type="range" id="dialSyncOffset" min="-200" max="200" step="5" value="0">
+            <span id="dialSyncOffsetValue">0ms</span>
+        </div>
+        <div class="debug-row">
+            <label for="smoothCircularArrow">Smooth Circular Arrow</label>
+            <input type="checkbox" id="smoothCircularArrow" checked>
+            <span></span>
+        </div>
+    </div>
+
+    <div class="debug-section">
+        <div class="debug-section-title">Open Symbol & Beat Number</div>
+
+        <div class="debug-row">
+            <label for="openSymbolSize">Open Symbol Size</label>
+            <input type="range" id="openSymbolSize" min="40" max="260" step="1" value="80">
+            <span id="openSymbolSizeValue">80%</span>
+        </div>
+        <div class="debug-row">
+            <label for="useNeonArticulationStyle">Use Neon Articulation Style</label>
+            <input type="checkbox" id="useNeonArticulationStyle">
+            <span></span>
+        </div>
+        <div class="debug-row">
+            <label for="beatNumberAlign">Beat Number Align</label>
+            <input type="range" id="beatNumberAlign" min="0" max="100" step="1" value="0">
+            <span id="beatNumberAlignValue">0px</span>
+        </div>
+        <div class="debug-row">
+            <label for="toneOutlineWidth">Tone Outline Width</label>
+            <input type="range" id="toneOutlineWidth" min="0" max="8" step="0.5" value="2">
+            <span id="toneOutlineWidthValue">2px</span>
+        </div>
+        <div class="debug-row">
+            <label for="beatIndicatorHeight">Beat Indicator Height</label>
+            <input type="range" id="beatIndicatorHeight" min="0" max="10" step="1" value="3">
+            <span id="beatIndicatorHeightValue">3px</span>
+        </div>
+        <div class="debug-row">
+            <label for="beatIndicatorOffset">Beat Indicator Y Offset</label>
+            <input type="range" id="beatIndicatorOffset" min="-40" max="40" step="1" value="0">
+            <span id="beatIndicatorOffsetValue">0px</span>
+        </div>
+        <div class="debug-row">
+            <label for="playbackBeatOffsetX">Beat Label X Offset</label>
+            <input type="range" id="playbackBeatOffsetX" min="-60" max="60" step="1" value="0">
+            <span id="playbackBeatOffsetXValue">0px</span>
+        </div>
+        <div class="debug-row">
+            <label for="playbackBeatOffsetY">Beat Label Y Offset</label>
+            <input type="range" id="playbackBeatOffsetY" min="-40" max="40" step="1" value="0">
+            <span id="playbackBeatOffsetYValue">0px</span>
+        </div>
+        <div class="debug-row">
+            <label for="transportEmojiTint">Transport Icon Tint</label>
+            <input type="color" id="transportEmojiTint" value="#ffffff">
+            <span id="transportEmojiTintValue">#ffffff</span>
+        </div>
+    </div>
+
+    <div class="debug-section">
+        <div class="debug-section-title">Beat Colors (1-12)</div>
+        <div class="debug-row">
+            <label for="beatColor1">Beat 1</label>
+            <input type="color" id="beatColor1" value="#ce1126">
+            <label for="beatColor2">Beat 2</label>
+            <input type="color" id="beatColor2" value="#ff8c00">
+            <label for="beatColor3">Beat 3</label>
+            <input type="color" id="beatColor3" value="#fcd116">
+            <label for="beatColor4">Beat 4</label>
+            <input type="color" id="beatColor4" value="#006b3f">
+        </div>
+        <div class="debug-row">
+            <label for="beatColor5">Beat 5</label>
+            <input type="color" id="beatColor5" value="#2196f3">
+            <label for="beatColor6">Beat 6</label>
+            <input type="color" id="beatColor6" value="#9c27b0">
+            <label for="beatColor7">Beat 7</label>
+            <input type="color" id="beatColor7" value="#e91e63">
+            <label for="beatColor8">Beat 8</label>
+            <input type="color" id="beatColor8" value="#00bcd4">
+        </div>
+        <div class="debug-row">
+            <label for="beatColor9">Beat 9</label>
+            <input type="color" id="beatColor9" value="#009688">
+            <label for="beatColor10">Beat 10</label>
+            <input type="color" id="beatColor10" value="#cddc39">
+            <label for="beatColor11">Beat 11</label>
+            <input type="color" id="beatColor11" value="#673ab7">
+            <label for="beatColor12">Beat 12</label>
+            <input type="color" id="beatColor12" value="#03a9f4">
+        </div>
+    </div>
+
+    <div class="debug-section">
+        <div class="debug-section-title">Settings</div>
+        <div class="debug-row">
+            <label for="disableResponsiveButtonSwap">Disable Responsive Button Swap</label>
+            <input type="checkbox" id="disableResponsiveButtonSwap">
+            <span></span>
+        </div>
+        <div class="debug-row">
+            <button onclick="exportDebugSettings()" style="padding: 8px 16px; background: var(--accent-primary); color: var(--bg-primary); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Export Settings</button>
+        </div>
+        <div class="debug-row">
+            <input type="file" id="importSettingsFile" accept=".json" style="display: none;" onchange="importDebugSettings(event)">
+            <button onclick="document.getElementById('importSettingsFile').click()" style="padding: 8px 16px; background: var(--accent-secondary); color: var(--bg-primary); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Import Settings</button>
+        </div>
+    </div>
+</div>
+
+<h1 id="appTitle">Rhythm Notation Editor</h1>
+
+<!-- Main Controls -->
+<div class="top-controls-layout">
+    <div class="controls control-panel grid-controls-panel">
+        <div class="control-group">
+            <label>Rhythm:</label>
+            <input type="text" id="rhythmName" value="Kassa" placeholder="Rhythm name">
+        </div>
+        <div class="control-group notation-rhythm-select-group">
+            <label>Library:</label>
+            <select id="rhythmSelect" title="Select rhythm">
+                <option value="">Current</option>
+            </select>
+        </div>
+        <button class="btn" id="compactViewBtn" onclick="toggleCompactMode()">Compact</button>
+        <button class="btn" onclick="loadExample()">Load</button>
+        <button class="btn" onclick="exportRhythm()">Export</button>
+        <button class="btn" onclick="importRhythm()">Import</button>
+        <input type="file" id="importFile" accept=".json" style="display: none;" onchange="handleFileImport(event)">
+        <button class="btn" onclick="clearAll()">Clear All</button>
+        <button class="btn top-settings-btn" id="mainSettingsBtn" onclick="toggleDebugPanel()">⚙ Settings</button>
+    </div>
+
+    <div class="controls control-panel transport-controls-panel">
+        <button class="btn btn-small btn-play" id="playBtn" onclick="togglePlayback()">▶ Play</button>
+        <button class="btn btn-small btn-call" id="callBtn" onclick="handleCallButton()" title="Call In when stopped, Call when playing">Call In</button>
+        <button class="btn btn-small btn-callout" id="callOutBtn" onclick="runCallOut()" title="Play call next measure, then stop after first step of following measure" style="display:none;">Call Out</button>
+        <div class="control-group callin-step-group" id="callInStepGroup">
+            <label title="How many steps from the end of call measure before ensemble enters">Step In:</label>
+            <input type="text" id="callInStepInput" value="1" inputmode="numeric" pattern="[0-9]*" autocomplete="off" style="width: 62px;" title="1 = last step, max = first step of call measure">
+        </div>
+        <span class="call-status" id="callStatus"></span>
+        <div class="control-group">
+            <label class="transport-emoji-label transport-emoji-beats" title="Beats">🎵</label>
+            <input type="number" id="beatCount" value="4" min="1" max="16" style="width: 50px;">
+        </div>
+        <div class="control-group">
+            <label class="transport-emoji-label transport-emoji-subdiv" title="Subdivisions">➗️</label>
+            <input type="number" id="subdivisions" value="4" min="1" max="8" style="width: 50px;">
+        </div>
+        <button class="btn btn-small" id="gridHelpBtn" title="How beat/subdivision editing works">❔ Grid</button>
+        <button class="btn btn-small" id="metronomeBtn" onclick="toggleMetronome()">⏱ Metro</button>
+        <button class="btn btn-small btn-tap" id="tapTempoBtn" onclick="tapTempo()">Tap</button>
+        <div class="control-group">
+            <label>Tempo:</label>
+            <button class="btn btn-small" onclick="adjustTempo(-10)">-10</button>
+            <button class="btn btn-small" onclick="adjustTempo(-1)">-</button>
+            <input type="number" id="tempo" value="100" min="40" max="240" style="width: 70px;">
+            <button class="btn btn-small" onclick="adjustTempo(1)">+</button>
+            <button class="btn btn-small" onclick="adjustTempo(10)">+10</button>
+        </div>
+    </div>
+</div>
+
+<!-- Compact top controls (shown only in compact mode) -->
+<div class="compact-top-controls" id="compactTopControls">
+    <div class="compact-rhythm-name" id="compactRhythmName">Kassa</div>
+    <select id="compactRhythmSelect" class="compact-rhythm-select" title="Select rhythm">
+        <option value="">Current</option>
+    </select>
+    <button class="btn btn-small btn-play compact-btn" id="compactPlayBtn" onclick="togglePlayback()">Play</button>
+    <button class="btn btn-small btn-call compact-btn" id="compactCallBtn" onclick="handleCallButton()">Call In</button>
+    <button class="btn btn-small btn-callout compact-btn" id="compactCallOutBtn" onclick="runCallOut()" style="display:none;">Call Out</button>
+    <div class="compact-callin-step" id="compactCallInStepGroup">
+        <label title="Call In step from end">IN</label>
+        <input type="text" id="compactCallInStepInput" inputmode="numeric" pattern="[0-9]*" autocomplete="off" value="1" title="1 = last step, max = first step">
+    </div>
+    <button class="btn btn-small compact-btn" id="compactMetronomeBtn" onclick="toggleMetronome()">MET</button>
+    <div class="compact-tempo-controls">
+        <button class="btn btn-small compact-btn" id="compactTempoDownBtn" onclick="adjustTempo(-1)">-</button>
+        <input type="number" id="compactTempo" min="40" max="240" value="100">
+        <button class="btn btn-small compact-btn" id="compactTempoUpBtn" onclick="adjustTempo(1)">+</button>
+    </div>
+    <button class="btn btn-small compact-btn btn-tap" id="compactTapTempoBtn" onclick="tapTempo()">TAP</button>
+    <button class="btn btn-small compact-btn" id="compactMasterMuteBtn" onclick="toggleMasterMute()">MUTE</button>
+    <button class="btn btn-small compact-btn" id="compactInstPanelBtn" onclick="toggleCompactInstrumentPanel()">INST</button>
+    <button class="btn btn-small compact-btn" id="compactFullViewBtn" onclick="toggleCompactMode()">FULL</button>
+</div>
+
+<!-- Combined Controls Bar -->
+<div class="combined-controls-bar">
+    <div class="audio-control master-control">
+        <button class="btn btn-small" id="masterMuteBtn" onclick="toggleMasterMute()">🔊 Global</button>
+        <input type="range" id="masterVolume" min="0" max="1" step="0.01" value="1"
+               oninput="updateMasterVolume(this.value); this.style.setProperty('--slider-fill', (this.value * 100) + '%')"
+               style="width: 100px; --slider-fill: 100%">
+        <span class="audio-value" id="masterVolumeValue">100%</span>
+    </div>
+    <div class="audio-control">
+        <span class="audio-label">🎶 Met Vol</span>
+        <input type="range" id="metronomeVolume" min="0" max="1" step="0.05" value="0.5"
+               oninput="updateMetronomeVolume(this.value); this.style.setProperty('--slider-fill', (this.value * 100) + '%')"
+               style="width: 80px; --slider-fill: 50%">
+        <span class="audio-value" id="metronomeVolumeValue">50%</span>
+    </div>
+    <div class="audio-control">
+        <span class="audio-label">🔊 Reverb</span>
+        <input type="range" id="reverbSlider" min="0" max="1" step="0.05" value="0.1"
+               oninput="updateReverb(this.value); this.style.setProperty('--slider-fill', (this.value * 100) + '%')"
+               style="width: 80px; --slider-fill: 10%">
+        <span class="audio-value" id="reverbValue">10%</span>
+    </div>
+    <div class="audio-control swing-control">
+        <span class="audio-label"><span class="transport-emoji-label transport-emoji-swing" title="Swing">🎶</span> Swing</span>
+        <div class="swing-sliders">
+            <div class="swing-slider-group">
+                <span class="swing-label">A</span>
+                <input type="range" id="swingA" min="-50" max="50" step="5" value="0"
+                       oninput="updateSwingBeat('A', this.value)"
+                       style="width: 60px; --slider-fill: 50%">
+                <span class="swing-value" id="swingAValue">0</span>
+            </div>
+            <div class="swing-slider-group">
+                <span class="swing-label">B</span>
+                <input type="range" id="swingB" min="-50" max="50" step="5" value="15"
+                       oninput="updateSwingBeat('B', this.value)"
+                       style="width: 60px; --slider-fill: 65%">
+                <span class="swing-value" id="swingBValue">15</span>
+            </div>
+            <div class="swing-slider-group">
+                <span class="swing-label">C</span>
+                <input type="range" id="swingC" min="-50" max="50" step="5" value="0"
+                       oninput="updateSwingBeat('C', this.value)"
+                       style="width: 60px; --slider-fill: 50%">
+                <span class="swing-value" id="swingCValue">0</span>
+            </div>
+            <div class="swing-slider-group">
+                <span class="swing-label">D</span>
+                <input type="range" id="swingD" min="-50" max="50" step="5" value="15"
+                       oninput="updateSwingBeat('D', this.value)"
+                       style="width: 60px; --slider-fill: 65%">
+                <span class="swing-value" id="swingDValue">15</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Instrument Toolbar -->
+<div class="instrument-toolbar" id="instrumentToolbar">
+    <span class="instrument-toolbar-label">Instruments:</span>
+    <!-- Icons will be populated by JavaScript -->
+    <button class="btn btn-small" id="toggleAllBtn" onclick="toggleAllInstruments()" style="margin-left: auto;">👁 Toggle All</button>
+</div>
+
+<div class="sound-stage-panel hidden" id="soundStagePanel">
+    <div class="sound-stage-header" id="soundStageHeader">
+        <span class="sound-stage-title">Sound Stage</span>
+        <div class="sound-stage-actions">
+            <button class="btn btn-small sound-stage-reset" id="soundStageResetBtn" title="Reset Stage Layout">Reset</button>
+            <button class="btn btn-small sound-stage-close" onclick="toggleSoundStagePanel()" title="Close Stage">✕</button>
+        </div>
+    </div>
+    <div class="sound-stage-area" id="soundStageArea">
+        <div class="sound-stage-floor" aria-hidden="true">
+            <span>Stage</span>
+        </div>
+    </div>
+</div>
+
+<!-- MIDI Config Panel (collapsible) -->
+<div class="midi-panel" id="midiPanel">
+    <div class="midi-header-row">
+        <button class="btn btn-small midi-toggle-btn" id="midiToggleBtn" onclick="toggleMidiPanel()">🎹 MIDI</button>
+        <div class="legend legend-inline">
+            <button class="articulation-btn slap-btn active" data-sound="slap" onclick="setSound('slap')">
+                <span class="key-hint">1</span> X <span class="sound-name">Slap/Bell</span>
+            </button>
+            <button class="articulation-btn tone-btn" data-sound="tone" onclick="setSound('tone')">
+                <span class="key-hint">2</span> <span class="open-circle-symbol articulation-open-circle-symbol"></span> <span class="sound-name">Open</span>
+            </button>
+            <button class="articulation-btn bass-btn" data-sound="bass" onclick="setSound('bass')">
+                <span class="key-hint">3</span> B <span class="sound-name">Bass</span>
+            </button>
+            <button class="articulation-btn mute-btn" data-sound="mute" onclick="setSound('mute')">
+                <span class="key-hint">4</span> M <span class="sound-name">Mute/Muffle</span>
+            </button>
+            <button class="articulation-btn silence-btn" data-sound="silence" onclick="setSound('silence')">
+                <span class="key-hint">5</span> — <span class="sound-name">Silence</span>
+            </button>
+            <button class="btn btn-small" id="cycleToggleBtn" onclick="toggleRapidCycle()" aria-pressed="true" title="Enable/disable rapid tap cycling">Cycle: On</button>
+            <button class="btn btn-small" id="cycleBtn" aria-pressed="false" title="How tap/hold grid input works">GRID INPUT ?</button>
+        </div>
+    </div>
+    <div class="midi-config" id="midiConfig" style="display:none;">
+        <div class="midi-row">
+            <label>Input:</label>
+            <select id="midiInputSelect"><option value="">None</option></select>
+            <label>Output:</label>
+            <select id="midiOutputSelect"><option value="">None</option></select>
+            <button class="btn btn-small" onclick="refreshMidiDevices()" title="Rescan MIDI devices">🔄 Scan</button>
+        </div>
+        <div class="midi-row">
+            <span class="midi-status" id="midiStatus">MIDI: Not connected</span>
+            <label><input type="checkbox" id="midiInputEnabled"> Input</label>
+            <label><input type="checkbox" id="midiOutputEnabled" checked> Output</label>
+        </div>
+        <div class="midi-map-grid" id="midiMapGrid">
+            <div class="midi-map-header">MIDI Note Map</div>
+            <div class="midi-map-section">
+                <span class="midi-map-title">🥁 Djembe 1</span>
+                <span class="midi-map-item">C2 Slap</span>
+                <span class="midi-map-item">C#2 Open</span>
+                <span class="midi-map-item">D2 Bass</span>
+                <span class="midi-map-item">D#2 Mute</span>
+            </div>
+            <div class="midi-map-section">
+                <span class="midi-map-title">🪘 Kenkeni</span>
+                <span class="midi-map-item">E2 Open</span>
+                <span class="midi-map-item">F2 Mute</span>
+                <span class="midi-map-item">F#2 🔔Bell</span>
+            </div>
+            <div class="midi-map-section">
+                <span class="midi-map-title">🪘 Sangban</span>
+                <span class="midi-map-item">G2 Open</span>
+                <span class="midi-map-item">G#2 Mute</span>
+                <span class="midi-map-item">A2 🔔Bell</span>
+            </div>
+            <div class="midi-map-section">
+                <span class="midi-map-title">🪘 Doundoun</span>
+                <span class="midi-map-item">Bb2 Open</span>
+                <span class="midi-map-item">B2 Mute</span>
+                <span class="midi-map-item">C3 🔔Bell</span>
+            </div>
+            <div class="midi-map-section">
+                <span class="midi-map-title">📣 Solo/Call</span>
+                <span class="midi-map-item">C#3 Slap</span>
+                <span class="midi-map-item">D3 Open</span>
+                <span class="midi-map-item">D#3 Bass</span>
+                <span class="midi-map-item">E3 Mute</span>
+            </div>
+            <div class="midi-map-section">
+                <span class="midi-map-title">🥁 Djembe 2</span>
+                <span class="midi-map-item">F3 Slap</span>
+                <span class="midi-map-item">F#3 Open</span>
+                <span class="midi-map-item">G3 Bass</span>
+                <span class="midi-map-item">G#3 Mute</span>
+            </div>
+            <div class="midi-map-section">
+                <span class="midi-map-title">🥁 Djembe 3</span>
+                <span class="midi-map-item">A3 Slap</span>
+                <span class="midi-map-item">Bb3 Open</span>
+                <span class="midi-map-item">B3 Bass</span>
+                <span class="midi-map-item">C4 Mute</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Notation Grid -->
+<div class="notation-container" id="notationContainer">
+    <div class="notation-grid-resize-handle top" id="notationGridResizeTop" title="Resize grid area"></div>
+    <div class="notation-grid-topbar" id="notationGridTopbar">
+        <div class="notation-playback-info">
+            <div class="tempo-display" id="tempoDisplay">100<span>BPM</span></div>
+            <div class="beat-display">Beat: <span id="currentBeat"></span></div>
+        </div>
+        <div class="notation-beatstrip" id="notationBeatstrip">
+            <div class="beat-numbers" id="beatNumbers"></div>
+        </div>
+    </div>
+    <div class="notation-grid-viewport" id="notationGridViewport">
+        <div id="notationGrid" class="notation-grid">
+            <!-- Instrument rows will be added here -->
+        </div>
+    </div>
+    <div class="notation-grid-resize-handle bottom" id="notationGridResizeBottom" title="Resize grid area"></div>
+</div>
+
+<!-- Circular popout (independent from linear notation grid) -->
+<div class="circular-popout hidden" id="circularPopout">
+    <div class="circular-popout-header" id="circularPopoutHeader">
+        <span class="circular-popout-title">Circular View</span>
+        <button class="btn btn-small circular-popout-close" onclick="setViewMode('linear')" title="Close Circular View">✕</button>
+    </div>
+    <div class="circular-rhythm-select-row">
+        <select id="circularRhythmSelect" class="circular-select" title="Select rhythm">
+            <option value="">Current</option>
+        </select>
+    </div>
+    <div class="circular-popout-body" id="circularPopoutBody">
+        <canvas id="circularCanvas"></canvas>
+    </div>
+    <div class="circular-call-controls">
+        <button class="btn btn-small btn-call circular-control-btn" id="circularCallBtn" onclick="handleCircularCallButton()">Call In</button>
+        <button class="btn btn-small btn-callout circular-control-btn" id="circularCallOutBtn" onclick="runCircularCallOut()" style="display:none;">Call Out</button>
+        <div class="compact-callin-step circular-callin-step" id="circularCallInStepGroup">
+            <label title="Call In step from end">IN</label>
+            <input type="text" id="circularCallInStepInput" inputmode="numeric" pattern="[0-9]*" autocomplete="off" value="1" title="1 = last step, max = first step">
+        </div>
+    </div>
+    <div class="circular-controls">
+        <button class="btn btn-play circular-control-btn" id="circularPlayBtn" onclick="togglePlayback()">▶ Play</button>
+        <button class="btn btn-small circular-control-btn circular-nav-btn" id="circularPrevBtn" onclick="cyclicalPrevInstrument()">◀</button>
+        <span id="circularInstrumentName"></span>
+        <button class="btn btn-small circular-control-btn circular-nav-btn" id="circularNextBtn" onclick="cyclicalNextInstrument()">▶</button>
+        <button class="btn btn-tap circular-control-btn" id="circularTapBtn" onclick="tapTempo()">Tap</button>
+    </div>
+    <div class="circular-popout-resize circular-popout-resize-n" data-circular-resize="n"></div>
+    <div class="circular-popout-resize circular-popout-resize-e" data-circular-resize="e"></div>
+    <div class="circular-popout-resize circular-popout-resize-s" data-circular-resize="s"></div>
+    <div class="circular-popout-resize circular-popout-resize-w" data-circular-resize="w"></div>
+    <div class="circular-popout-resize circular-popout-resize-nw" data-circular-resize="nw"></div>
+    <div class="circular-popout-resize circular-popout-resize-ne" data-circular-resize="ne"></div>
+    <div class="circular-popout-resize circular-popout-resize-sw" data-circular-resize="sw"></div>
+    <div class="circular-popout-resize circular-popout-resize-se" data-circular-resize="se"></div>
+</div>
+
+<!-- Compact bottom controls (shown only in compact mode) -->
+<div class="compact-bottom-controls" id="compactBottomControls">
+    <div class="instrument-toolbar compact-instrument-toolbar" id="compactInstrumentToolbar">
+        <span class="instrument-toolbar-label">Inst</span>
+    </div>
+</div>
+
+<script src="notation-app.js?v=timing-v8"></script>
+
+</body>
+</html>
