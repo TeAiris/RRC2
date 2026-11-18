@@ -17965,7 +17965,7 @@ function setupNotation() {
     let circularBridgeRaf = 0;
     let circularBridgePendingLeft = 0;
     let circularBridgePendingTop = 0;
-    const notationUiVersion = '2026-11-18-room-v12'; // bump whenever Notation/ changes, or devices keep a cached player
+    const notationUiVersion = '2026-11-18-room-v13'; // bump whenever Notation/ changes, or devices keep a cached player
 
     function getThemeColor() {
         if (selectedRhythm && rhythmColorMap[selectedRhythm]) return rhythmColorMap[selectedRhythm].hex;
